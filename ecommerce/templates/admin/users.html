@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Manage Users</h2>
+    </div>
+</div>
+
+{# Pending approval banner #}
+{% set pending = users.items | selectattr('is_active', 'equalto', false) | list %}
+{% if pending %}
+<div class="alert alert-warning">
+    <strong>{{ pending|length }} account(s) pending approval.</strong> Review documents below and activate.
+</div>
+{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Documents</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users.items %}
+            <tr class="{{ 'table-warning' if not user.is_active else '' }}">
+                <td>
+                    <div class="fw-bold">{{ user.username }}</div>
+                    <small class="text-muted">{{ user.email }}</small><br>
+                    <small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                </td>
+                <td>
+                    <span class="badge bg-{{
+                        'primary' if user.role == 'buyer' else
+                        'success' if user.role == 'seller' else
+                        'warning text-dark' if user.role == 'rider' else
+                        'danger'
+                    }}">{{ user.role.upper() }}</span>
+                </td>
+                <td>
+                    <div class="d-flex flex-column gap-1">
+                        {% if user.valid_id %}
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.valid_id) }}"
+                           target="_blank" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2" style="font-size:.75rem;">
+                            🪪 Valid ID
+                        </a>
+                        {% endif %}
+                        {% if user.business_permit %}
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.business_permit) }}"
+                           target="_blank" class="btn btn-xs btn-outline-success btn-sm py-0 px-2" style="font-size:.75rem;">
+                            📄 Business Permit
+                        </a>
+                        {% endif %}
+                        {% if user.drivers_license %}
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.drivers_license) }}"
+                           target="_blank" class="btn btn-xs btn-outline-info btn-sm py-0 px-2" style="font-size:.75rem;">
+                            🪪 Driver's License
+                        </a>
+                        {% endif %}
+                        {% if user.plate_number %}
+                        <small class="text-muted">Plate: {{ user.plate_number }}</small>
+                        {% endif %}
+                        {% if user.shop_name %}
+                        <small class="text-muted">Shop: {{ user.shop_name }}</small>
+                        {% endif %}
+                        {% if not user.valid_id and not user.business_permit and not user.drivers_license %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% if user.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                        {% if not user.is_active %}
+                        <input type="hidden" name="is_active" value="on">
+                        <input type="hidden" name="is_verified" value="on">
+                        <button type="submit" class="btn btn-sm btn-success"
+                            onclick="return confirm('Approve {{ user.username }}?')">
+                            ✓ Approve
+                        </button>
+                        {% else %}
+                        <input type="hidden" name="is_active" value="">
+                        <input type="hidden" name="is_verified" value="on">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Deactivate {{ user.username }}?')">
+                            Deactivate
+                        </button>
+                        {% endif %}
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">No users found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if users.pages > 1 %}
+<nav>
+    <ul class="pagination">
+        {% for p in users.iter_pages() %}
+            {% if p %}
+            <li class="page-item {% if p == users.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.manage_users', page=p) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-2">← Back to Dashboard</a>
+{% endblock %}

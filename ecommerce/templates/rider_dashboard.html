@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Rider Dashboard - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Rider Dashboard</h2>
+        <p class="text-muted mb-0">Welcome, {{ current_user.username }}
+            {% if current_user.vehicle_type %} · {{ current_user.vehicle_type }}{% endif %}
+            {% if current_user.vehicle_number %} ({{ current_user.vehicle_number }}){% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <div class="fs-1">📦</div>
+                <h5 class="card-title">Active Deliveries</h5>
+                <p class="display-5 fw-bold text-warning">{{ active_orders|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <div class="fs-1">✅</div>
+                <h5 class="card-title">Completed</h5>
+                <p class="display-5 fw-bold text-success">{{ completed }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <div class="fs-1">🏍️</div>
+                <h5 class="card-title">Status</h5>
+                <p class="display-5 fw-bold text-primary">
+                    {% if current_user.is_active %}Active{% else %}Inactive{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Active Deliveries</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if active_orders %}
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Order #</th>
+                    <th>Buyer</th>
+                    <th>Deliver To</th>
+                    <th>Amount (COD)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in active_orders %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}">
+                            {{ order.order_number }}
+                        </a>
+                    </td>
+                    <td>{{ order.buyer.username }}<br>
+                        <small class="text-muted">{{ order.buyer.phone or '' }}</small>
+                    </td>
+                    <td>
+                        {{ order.delivery_address }}<br>
+                        <small class="text-muted">{{ order.delivery_city }}{% if order.delivery_zip %}, {{ order.delivery_zip }}{% endif %}</small>
+                    </td>
+                    <td class="fw-bold">₱{{ "%.2f"|format(order.total_amount) }}</td>
+                    <td>
+                        {% if order.status == 'assigned' %}
+                        <span class="badge bg-info text-dark">ASSIGNED</span>
+                        {% elif order.status == 'shipped' %}
+                        <span class="badge bg-secondary">PICKED UP</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.status == 'assigned' %}
+                        <form method="POST" action="{{ url_for('orders.pickup_order', order_id=order.id) }}">
+                            <button type="submit" class="btn btn-sm btn-primary"
+                                onclick="return confirm('Confirm pickup of order {{ order.order_number }}?')">
+                                🏍️ Picked Up
+                            </button>
+                        </form>
+                        {% elif order.status == 'shipped' %}
+                        <form method="POST" action="{{ url_for('orders.deliver_order', order_id=order.id) }}">
+                            <button type="submit" class="btn btn-sm btn-success"
+                                onclick="return confirm('Confirm delivery and cash collection for {{ order.order_number }}?')">
+                                ✅ Delivered
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <p class="mb-0">No active deliveries assigned to you.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

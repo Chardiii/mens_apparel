@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2>Welcome, {{ current_user.first_name or current_user.username }}!</h2>
+    <p class="text-muted mb-0">Here's what's happening with your orders.</p>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <div class="fs-2">🕐</div>
+                <div class="display-6 fw-bold text-warning">{{ stats.pending }}</div>
+                <div class="text-muted small">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <div class="fs-2">📦</div>
+                <div class="display-6 fw-bold text-primary">{{ stats.active }}</div>
+                <div class="text-muted small">In Progress</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <div class="fs-2">✅</div>
+                <div class="display-6 fw-bold text-success">{{ stats.delivered }}</div>
+                <div class="text-muted small">Delivered</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-secondary">
+            <div class="card-body">
+                <div class="fs-2">🛒</div>
+                <div class="display-6 fw-bold text-secondary">{{ stats.total }}</div>
+                <div class="text-muted small">Total Orders</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center py-4">
+                <div class="fs-1 mb-2">🛍️</div>
+                <h5>Shop Now</h5>
+                <p class="text-muted small">Browse products from local sellers</p>
+                <a href="{{ url_for('products.list_products') }}" class="btn btn-primary btn-sm">Browse Products</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center py-4">
+                <div class="fs-1 mb-2">📋</div>
+                <h5>My Orders</h5>
+                <p class="text-muted small">Track all your orders</p>
+                <a href="{{ url_for('orders.my_orders') }}" class="btn btn-outline-primary btn-sm">View Orders</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center py-4">
+                <div class="fs-1 mb-2">👤</div>
+                <h5>My Profile</h5>
+                <p class="text-muted small">Update your delivery address</p>
+                <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary btn-sm">Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

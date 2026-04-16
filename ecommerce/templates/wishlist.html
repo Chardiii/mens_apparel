@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}My Wishlist - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>♡ My Wishlist</h2>
+        <p class="text-muted">{{ items|length }} saved item{{ 's' if items|length != 1 }}</p>
+    </div>
+</div>
+
+{% if items %}
+<div class="row g-4">
+    {% for item in items %}
+    {% set product = item.product %}
+    <div class="col-md-4" id="wishlist-card-{{ product.id }}">
+        <div class="card h-100">
+            {% set primary = product.images.filter_by(is_primary=True).first() %}
+            {% if primary %}
+            <img src="{{ url_for('static', filename='uploads/' ~ primary.image_url) }}"
+                 class="card-img-top" style="height:200px;object-fit:cover;" alt="{{ product.name }}">
+            {% else %}
+            <div class="bg-light d-flex align-items-center justify-content-center" style="height:200px;">
+                <span class="text-muted fs-2">📷</span>
+            </div>
+            {% endif %}
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">{{ product.name }}</h5>
+                {% if product.category %}
+                <span class="badge bg-secondary mb-2" style="width:fit-content;">{{ product.category }}</span>
+                {% endif %}
+                <p class="text-success fw-bold">₱{{ "%.2f"|format(product.price) }}</p>
+                <div class="mt-auto d-flex gap-2">
+                    <a href="{{ url_for('products.view_product', product_id=product.id) }}"
+                       class="btn btn-primary btn-sm flex-fill">View</a>
+                    <button class="btn btn-outline-danger btn-sm wishlist-btn"
+                            data-product-id="{{ product.id }}"
+                            data-wishlisted="true">♥ Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <div class="fs-1 mb-3">♡</div>
+    <p class="text-muted fs-5">Your wishlist is empty.</p>
+    <a href="{{ url_for('products.list_products') }}" class="btn btn-primary">Browse Products</a>
+</div>
+{% endif %}
+{% endblock %}

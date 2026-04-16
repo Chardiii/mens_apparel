@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Mode S7vn — Shop Local, Pay on Delivery{% endblock %}
+
+{% block content %}
+<div class="hero-banner rounded-3 p-5 mb-5 text-white">
+    {% if current_user.is_authenticated %}
+        <h1 class="display-5 fw-bold">Welcome back, {{ current_user.first_name or current_user.username }}!</h1>
+        <p class="lead">Ready to shop? Everything ships Cash on Delivery.</p>
+        <a class="btn btn-light btn-lg" href="{{ url_for('products.list_products') }}">Browse Products</a>
+    {% else %}
+        <h1 class="display-5 fw-bold">Mode S7vn</h1>
+        <p class="lead">Shop local. Pay when it arrives. No cards needed.</p>
+        <a class="btn btn-light btn-lg me-2" href="{{ url_for('auth.register') }}">Get Started</a>
+        <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}">Login</a>
+    {% endif %}
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card h-100 text-center">
+            <div class="card-body py-4">
+                <div class="fs-1 mb-2">🛍️</div>
+                <h5 class="card-title">Shop</h5>
+                <p class="card-text text-muted">Browse products from local sellers. Add to cart and checkout in seconds.</p>
+                <a href="{{ url_for('products.list_products') }}" class="btn btn-primary btn-sm">Browse Now</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 text-center">
+            <div class="card-body py-4">
+                <div class="fs-1 mb-2">💵</div>
+                <h5 class="card-title">Cash on Delivery</h5>
+                <p class="card-text text-muted">No payment APIs. No cards. Pay the rider when your order arrives at your door.</p>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-success btn-sm">Get Started</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

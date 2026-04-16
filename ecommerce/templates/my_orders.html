@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>My Orders</h2>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            {% set s = order.status %}
+            <tr>
+                <td>{{ order.order_number }}</td>
+                <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
+                <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
+                <td>
+                    <span class="badge bg-{{
+                        'warning text-dark' if s == 'pending' else
+                        'primary' if s == 'verified' else
+                        'info text-dark' if s == 'assigned' else
+                        'secondary' if s == 'shipped' else
+                        'success' if s == 'delivered' else
+                        'danger'
+                    }}">{{ s.upper() }}</span>
+                </td>
+                <td>
+                    <span class="badge bg-{{ 'success' if order.payment and order.payment.status == 'collected' else 'warning text-dark' }}">
+                        💵 {{ 'Collected' if order.payment and order.payment.status == 'collected' else 'COD Pending' }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    No orders yet. <a href="{{ url_for('products.list_products') }}">Start shopping</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

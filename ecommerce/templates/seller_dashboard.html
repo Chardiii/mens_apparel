@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Seller Dashboard - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2>Seller Dashboard</h2>
+        <p class="text-muted mb-0">{{ current_user.shop_name or current_user.username }}</p>
+    </div>
+    <div class="col-auto d-flex gap-2">
+        <a href="{{ url_for('products.add_product') }}" class="btn btn-success">+ Add Product</a>
+        <a href="{{ url_for('orders.seller_received_orders') }}" class="btn btn-outline-primary">📦 Orders</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <div class="fs-2">💰</div>
+                <div class="display-6 fw-bold text-success">₱{{ "%.2f"|format(stats.revenue) }}</div>
+                <div class="text-muted small">Revenue (Delivered)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <div class="fs-2">📋</div>
+                <div class="display-6 fw-bold text-primary">{{ stats.total_orders }}</div>
+                <div class="text-muted small">Total Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <div class="fs-2">🕐</div>
+                <div class="display-6 fw-bold text-warning">{{ stats.pending_orders }}</div>
+                <div class="text-muted small">Pending Orders</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h5 class="mb-0">My Products</h5></div>
+    <div class="card-body p-0">
+        <table class="table table-striped align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Rating</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        {% set primary = product.images.filter_by(is_primary=True).first() %}
+                        {% if primary %}
+                        <img src="{{ url_for('static', filename='uploads/' ~ primary.image_url) }}"
+                             class="rounded me-2" style="width:40px;height:40px;object-fit:cover;">
+                        {% endif %}
+                        {{ product.name }}
+                    </td>
+                    <td>{{ product.category or '—' }}</td>
+                    <td>₱{{ "%.2f"|format(product.price) }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if product.stock > 0 else 'danger' }}">
+                            {{ product.stock }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="text-warning">
+                            {% for i in range(1, 6) %}{% if i <= product.rating|int %}★{% else %}☆{% endif %}{% endfor %}
+                        </span>
+                        <small class="text-muted">({{ product.review_count }})</small>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('products.edit_product', product_id=product.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <form method="POST" action="{{ url_for('products.delete_product', product_id=product.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Delete {{ product.name }}?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No products yet. <a href="{{ url_for('products.add_product') }}">Add your first product</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

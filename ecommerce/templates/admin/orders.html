@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Orders - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Manage Orders</h2>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Buyer</th>
+                <th>Seller</th>
+                <th>Rider</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders.items %}
+            {% set s = order.status %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}">{{ order.order_number }}</a>
+                </td>
+                <td>{{ order.buyer.username }}</td>
+                <td>{{ order.seller_user.username if order.seller_user else '—' }}</td>
+                <td>{{ order.rider.username if order.rider else '—' }}</td>
+                <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
+                <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
+                <td>
+                    <span class="badge bg-{{
+                        'warning text-dark' if s == 'pending' else
+                        'primary' if s == 'verified' else
+                        'info text-dark' if s == 'assigned' else
+                        'secondary' if s == 'shipped' else
+                        'success' if s == 'delivered' else
+                        'danger'
+                    }}">{{ s.upper() }}</span>
+                </td>
+                <td>
+                    {% if order.status == 'verified' %}
+                    <button type="button" class="btn btn-sm btn-warning"
+                        data-bs-toggle="modal"
+                        data-bs-target="#assignModal"
+                        data-order-id="{{ order.id }}"
+                        data-order-num="{{ order.order_number }}">
+                        🚴 Assign Rider
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">No orders found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# Pagination #}
+{% if orders.pages > 1 %}
+<nav>
+    <ul class="pagination">
+        {% for p in orders.iter_pages() %}
+            {% if p %}
+            <li class="page-item {% if p == orders.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.manage_orders', page=p) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-2">← Back to Dashboard</a>
+
+{# Assign Rider Modal #}
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Rider</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="assignForm">
+                <div class="modal-body">
+                    <p>Assigning rider for order: <strong id="modalOrderNum"></strong></p>
+                    <label class="form-label">Select Rider</label>
+                    <select class="form-select" name="rider_id" required>
+                        <option value="">— Choose a rider —</option>
+                        {% for rider in riders %}
+                        <option value="{{ rider.id }}">{{ rider.username }}
+                            {% if rider.vehicle_type %}({{ rider.vehicle_type }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const assignModal = document.getElementById('assignModal')
+assignModal.addEventListener('show.bs.modal', e => {
+    const btn = e.relatedTarget
+    document.getElementById('modalOrderNum').textContent = btn.dataset.orderNum
+    document.getElementById('assignForm').action = `/admin/orders/${btn.dataset.orderId}/assign-rider`
+})
+</script>
+{% endblock %}

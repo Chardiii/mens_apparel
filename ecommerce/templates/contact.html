@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Contact - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <h2 class="mb-4">Contact Us</h2>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="fs-2 mb-2">📧</div>
+                        <h6>Email</h6>
+                        <p class="text-muted small mb-0">support@modes7vn.com</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="fs-2 mb-2">📱</div>
+                        <h6>Phone</h6>
+                        <p class="text-muted small mb-0">+63 900 000 0000</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="fs-2 mb-2">📍</div>
+                        <h6>Location</h6>
+                        <p class="text-muted small mb-0">Philippines</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Send a Message</h5></div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" placeholder="Your name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" placeholder="your@email.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" rows="4" placeholder="How can we help?"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

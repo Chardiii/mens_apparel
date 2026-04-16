@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Create Account</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.register') }}" enctype="multipart/form-data" data-validate>
+
+                    {# ── Step 1: Choose role ── #}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">I want to register as</label>
+                        <div class="d-flex gap-2">
+                            <input type="radio" class="btn-check" name="role" id="role_buyer" value="buyer" checked>
+                            <label class="btn btn-outline-primary flex-fill text-center" for="role_buyer">
+                                🛍️<br><small>Buyer</small>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="role" id="role_seller" value="seller">
+                            <label class="btn btn-outline-success flex-fill text-center" for="role_seller">
+                                🏪<br><small>Seller</small>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="role" id="role_rider" value="rider">
+                            <label class="btn btn-outline-warning flex-fill text-center" for="role_rider">
+                                🏍️<br><small>Rider</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    {# ── Basic info (all roles) ── #}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" class="form-control" name="first_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" class="form-control" name="last_name">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-control" name="phone">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="password"
+                                   id="password-field" required>
+                            <div class="progress mt-1" style="height:6px;">
+                                <div id="pw-strength-bar" class="progress-bar" style="width:0%;"></div>
+                            </div>
+                            <small id="pw-strength-text" class="text-muted"></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="confirm_password" required>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    {# ── Valid ID (all roles) ── #}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            Valid ID <span class="text-danger">*</span>
+                            <small class="text-muted fw-normal">(Government-issued ID — JPG, PNG, PDF)</small>
+                        </label>
+                        <input type="file" class="form-control" name="valid_id" accept="image/*,.pdf" required>
+                    </div>
+
+                    {# ── Seller-only fields ── #}
+                    <div id="seller_fields" style="display:none;">
+                        <hr>
+                        <p class="fw-bold text-success mb-3">🏪 Seller Information</p>
+                        <div class="mb-3">
+                            <label class="form-label">Store Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="shop_name" id="shop_name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Store Description</label>
+                            <textarea class="form-control" name="shop_description" rows="2"
+                                placeholder="Brief description of your store..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Business Permit <span class="text-danger">*</span>
+                                <small class="text-muted fw-normal">(JPG, PNG, PDF)</small>
+                            </label>
+                            <input type="file" class="form-control" name="business_permit"
+                                   id="business_permit" accept="image/*,.pdf">
+                        </div>
+                    </div>
+
+                    {# ── Rider-only fields ── #}
+                    <div id="rider_fields" style="display:none;">
+                        <hr>
+                        <p class="fw-bold text-warning mb-3">🏍️ Rider Information</p>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Vehicle Type</label>
+                                <select class="form-select" name="vehicle_type">
+                                    <option value="">— Select —</option>
+                                    <option value="Motorcycle">Motorcycle</option>
+                                    <option value="Bicycle">Bicycle</option>
+                                    <option value="Car">Car</option>
+                                    <option value="Van">Van</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Plate Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="plate_number"
+                                       id="plate_number" placeholder="e.g. ABC 1234">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Driver's License <span class="text-danger">*</span>
+                                <small class="text-muted fw-normal">(JPG, PNG, PDF)</small>
+                            </label>
+                            <input type="file" class="form-control" name="drivers_license"
+                                   id="drivers_license" accept="image/*,.pdf">
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info small mt-3 mb-3">
+                        <strong>Note:</strong> Your account will be reviewed by our admin team before activation.
+                        This usually takes 1–2 business days.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Submit Registration</button>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const roleInputs = document.querySelectorAll('input[name="role"]')
+const sellerFields = document.getElementById('seller_fields')
+const riderFields  = document.getElementById('rider_fields')
+
+const shopName       = document.getElementById('shop_name')
+const businessPermit = document.getElementById('business_permit')
+const driversLicense = document.getElementById('drivers_license')
+const plateNumber    = document.getElementById('plate_number')
+
+function updateFields() {
+    const role = document.querySelector('input[name="role"]:checked').value
+
+    sellerFields.style.display = role === 'seller' ? 'block' : 'none'
+    riderFields.style.display  = role === 'rider'  ? 'block' : 'none'
+
+    // Toggle required attributes
+    shopName.required       = role === 'seller'
+    businessPermit.required = role === 'seller'
+    driversLicense.required = role === 'rider'
+    plateNumber.required    = role === 'rider'
+}
+
+roleInputs.forEach(r => r.addEventListener('change', updateFields))
+updateFields()
+</script>
+{% endblock %}

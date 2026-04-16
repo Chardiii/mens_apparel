@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Reports & Analytics</h2>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <div class="fs-2">💰</div>
+                <div class="display-6 fw-bold text-success">₱{{ "%.2f"|format(revenue) }}</div>
+                <div class="text-muted small">Total Revenue (Delivered)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <div class="fs-2">📋</div>
+                <div class="display-6 fw-bold text-primary">{{ status_counts.values()|sum }}</div>
+                <div class="text-muted small">Total Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <div class="fs-2">👥</div>
+                <div class="display-6 fw-bold text-info">{{ role_counts.values()|sum }}</div>
+                <div class="text-muted small">Total Users</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Orders by Status</h5></div>
+            <div class="card-body">
+                {% set statuses = [
+                    ('pending',   'warning', 'Pending'),
+                    ('verified',  'primary', 'Verified'),
+                    ('assigned',  'info',    'Assigned'),
+                    ('shipped',   'secondary','Shipped'),
+                    ('delivered', 'success', 'Delivered'),
+                    ('cancelled', 'danger',  'Cancelled')
+                ] %}
+                {% for key, color, label in statuses %}
+                {% set count = status_counts.get(key, 0) %}
+                {% set total = status_counts.values()|sum or 1 %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ label }}</span>
+                        <span class="badge bg-{{ color }} {% if color in ['warning','info'] %}text-dark{% endif %}">{{ count }}</span>
+                    </div>
+                    <div class="progress" style="height:8px;">
+                        <div class="progress-bar bg-{{ color }}" style="width:{{ (count / total * 100)|round }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Users by Role</h5></div>
+            <div class="card-body">
+                {% set roles = [
+                    ('buyer',  'primary',   '🛍️ Buyers'),
+                    ('seller', 'success',   '🏪 Sellers'),
+                    ('rider',  'info',      '🏍️ Riders'),
+                    ('admin',  'danger',    '🔧 Admins')
+                ] %}
+                {% for key, color, label in roles %}
+                {% set count = role_counts.get(key, 0) %}
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <span>{{ label }}</span>
+                    <span class="badge bg-{{ color }} fs-6">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Top 5 Products by Units Sold</h5></div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Units Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, units in top_products %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ name }}</td>
+                            <td><span class="badge bg-success">{{ units }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-3">No sales data yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-4">← Back to Dashboard</a>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Edit Product</h5></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('products.edit_product', product_id=product.id) }}" enctype="multipart/form-data" data-validate>
+                    <div class="mb-3">
+                        <label class="form-label">Product Name</label>
+                        <input type="text" class="form-control" name="name" value="{{ product.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3">{{ product.description or '' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category</label>
+                            <input type="text" class="form-control" name="category" value="{{ product.category or '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Price (₱)</label>
+                            <input type="number" class="form-control" name="price" step="0.01" value="{{ product.price }}" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Stock</label>
+                            <input type="number" class="form-control" name="stock" value="{{ product.stock }}" required>
+                        </div>
+                    </div>
+
+                    {# Existing images #}
+                    {% set images = product.images.all() %}
+                    {% if images %}
+                    <div class="mb-3">
+                        <label class="form-label">Current Images</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for img in images %}
+                            <div class="position-relative">
+                                <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
+                                     class="rounded border" style="width:90px;height:90px;object-fit:cover;"
+                                     alt="Product image">
+                                {% if img.is_primary %}
+                                <span class="position-absolute top-0 start-0 badge bg-success" style="font-size:.6rem;">Primary</span>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('products.delete_image', image_id=img.id) }}"
+                                      style="position:absolute;top:2px;right:2px;">
+                                    <button type="submit" class="btn btn-danger btn-sm p-0 px-1"
+                                        onclick="return confirm('Delete this image?')" style="font-size:.7rem;">✕</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Add More Images</label>
+                        <input type="file" class="form-control" name="images" multiple accept="image/*">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+                </form>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-outline-secondary btn-sm">← Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Sellers - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Manage Sellers</h2>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Shop Name</th>
+                <th>Products</th>
+                <th>Orders</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for seller in sellers.items %}
+            <tr>
+                <td>{{ seller.username }}</td>
+                <td>{{ seller.email }}</td>
+                <td>{{ seller.shop_name or '—' }}</td>
+                <td><span class="badge bg-secondary">{{ seller.products.count() }}</span></td>
+                <td><span class="badge bg-info text-dark">{{ seller.seller_orders.count() }}</span></td>
+                <td>
+                    <span class="badge bg-{{ 'success' if seller.is_active else 'danger' }}">
+                        {{ 'Active' if seller.is_active else 'Inactive' }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">No sellers registered yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if sellers.pages > 1 %}
+<nav>
+    <ul class="pagination">
+        {% for p in sellers.iter_pages() %}
+            {% if p %}
+            <li class="page-item {% if p == sellers.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.manage_sellers', page=p) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-2">← Back to Dashboard</a>
+{% endblock %}

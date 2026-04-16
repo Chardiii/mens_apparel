@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>Admin Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Users</h5>
+                <p class="card-text display-4">{{ stats.total_users }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Products</h5>
+                <p class="card-text display-4">{{ stats.total_products }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Orders</h5>
+                <p class="card-text display-4">{{ stats.total_orders }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">Total Revenue</h5>
+                <p class="card-text display-4">₱{{ "%.2f"|format(stats.total_revenue) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Admin Tools</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('admin.manage_users') }}" class="list-group-item list-group-item-action">👥 Manage Users</a>
+                    <a href="{{ url_for('admin.manage_products') }}" class="list-group-item list-group-item-action">📦 Manage Products</a>
+                    <a href="{{ url_for('admin.manage_orders') }}" class="list-group-item list-group-item-action">📋 Manage Orders</a>
+                    <a href="{{ url_for('admin.manage_sellers') }}" class="list-group-item list-group-item-action">🏪 Manage Sellers</a>
+                    <a href="{{ url_for('admin.manage_riders') }}" class="list-group-item list-group-item-action">🚚 Manage Riders</a>
+                    <a href="{{ url_for('admin.reports') }}" class="list-group-item list-group-item-action">📊 View Reports</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Seller Orders - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Incoming Orders</h2>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Buyer</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_number }}</td>
+                <td>{{ order.buyer.username }}</td>
+                <td>{{ order.created_at.strftime('%b %d, %Y %H:%M') }}</td>
+                <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
+                <td>
+                    {% set s = order.status %}
+                    <span class="badge bg-{{
+                        'warning text-dark' if s == 'pending' else
+                        'primary' if s == 'verified' else
+                        'info text-dark' if s == 'assigned' else
+                        'secondary' if s == 'shipped' else
+                        'success' if s == 'delivered' else
+                        'danger'
+                    }}">{{ s.upper() }}</span>
+                </td>
+                <td class="d-flex gap-1 flex-wrap">
+                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+
+                    {% if order.status == 'pending' %}
+                    <form method="POST" action="{{ url_for('orders.verify_order', order_id=order.id) }}">
+                        <button type="submit" class="btn btn-sm btn-success"
+                            onclick="return confirm('Verify order {{ order.order_number }}?')">
+                            ✓ Verify
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Cancel this order?')">
+                            Cancel
+                        </button>
+                    </form>
+                    {% elif order.status == 'verified' %}
+                    <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Cancel this verified order?')">
+                            Cancel
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">No orders yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

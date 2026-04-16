@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Edit Profile</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.edit_profile') }}" data-validate>
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ current_user.first_name or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ current_user.last_name or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ current_user.phone or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address">{{ current_user.address or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" class="form-control" id="city" name="city" value="{{ current_user.city or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="zip_code" class="form-label">ZIP Code</label>
+                        <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ current_user.zip_code or '' }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+                </form>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('auth.profile') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}About - Mode S7vn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+
+        <div class="hero-banner rounded-3 p-5 mb-4 text-white text-center">
+            <h1 class="fw-bold" style="letter-spacing:4px;">MODE S7VN</h1>
+            <p class="lead mb-0">Shop Local. Pay on Delivery.</p>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <h4>Who We Are</h4>
+                <p class="text-muted">
+                    Mode S7vn is a local e-commerce platform built to connect buyers, sellers, and riders
+                    in one seamless experience. We believe shopping should be simple — browse, order, and
+                    pay only when your item arrives at your door.
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body py-4">
+                        <div class="fs-1 mb-2">🛍️</div>
+                        <h5>Buyers</h5>
+                        <p class="text-muted small">Browse products, add to cart, and checkout. Pay cash when your rider arrives.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body py-4">
+                        <div class="fs-1 mb-2">🏪</div>
+                        <h5>Sellers</h5>
+                        <p class="text-muted small">List your products, verify incoming orders, and hand them off to our riders.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body py-4">
+                        <div class="fs-1 mb-2">🏍️</div>
+                        <h5>Riders</h5>
+                        <p class="text-muted small">Pick up verified orders from sellers and deliver them to buyers. Collect cash on delivery.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <h4>Why Cash on Delivery?</h4>
+                <p class="text-muted">
+                    We keep it simple and trustworthy. No payment APIs, no card details, no online transactions.
+                    You only pay when your order is physically in your hands — verified by the seller,
+                    delivered by our rider.
+                </p>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Join Mode S7vn</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
