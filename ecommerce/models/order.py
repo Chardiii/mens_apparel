@@ -37,15 +37,18 @@ class Order(db.Model):
         return f'<Order {self.order_number}>'
 
 class OrderItem(db.Model):
-    """Order items"""
     __tablename__ = 'order_items'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    order_id   = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=False)  # Price at time of order
-    subtotal = db.Column(db.Float, nullable=False)
-    
+    variant_id = db.Column(db.Integer, db.ForeignKey('product_variants.id'), nullable=True)
+    quantity   = db.Column(db.Integer, nullable=False)
+    price      = db.Column(db.Float, nullable=False)
+    subtotal   = db.Column(db.Float, nullable=False)
+    # snapshot of variant info at time of order
+    variant_size  = db.Column(db.String(30), nullable=True)
+    variant_color = db.Column(db.String(50), nullable=True)
+
     def __repr__(self):
         return f'<OrderItem {self.id}>'

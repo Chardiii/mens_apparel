@@ -53,6 +53,8 @@ class User(UserMixin, db.Model):
     # Account status
     is_active = db.Column(db.Boolean, default=False, nullable=False)  # requires admin approval
     is_verified = db.Column(db.Boolean, default=False)  # admin approval flag
+    is_banned = db.Column(db.Boolean, default=False)    # permanently banned
+    ban_reason = db.Column(db.String(255))
     email_verified = db.Column(db.Boolean, default=False)  # email verification flag
     email_verify_token = db.Column(db.String(100), unique=True)
     reset_token = db.Column(db.String(100), unique=True)

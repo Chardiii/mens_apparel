@@ -1,0 +1,298 @@
+{% macro admin_layout(active_page='dashboard') %}
+<div class="adm-wrap">
+
+    {# ── Sidebar ── #}
+    <aside class="adm-sidebar">
+        <div class="adm-sidebar-brand">
+            <span class="adm-brand-icon">🔧</span>
+            <div>
+                <div class="adm-brand-name">Admin Panel</div>
+                <div class="adm-brand-sub">Mode S7vn</div>
+            </div>
+        </div>
+
+        <nav class="adm-nav">
+            <div class="adm-nav-label">Overview</div>
+            <a href="{{ url_for('admin.dashboard') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'dashboard' }}">
+                <span class="adm-nav-icon">📊</span> Dashboard
+            </a>
+            <a href="{{ url_for('admin.reports') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'reports' }}">
+                <span class="adm-nav-icon">📈</span> Reports
+            </a>
+
+            <div class="adm-nav-label">Management</div>
+            <a href="{{ url_for('admin.manage_orders') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'orders' }}">
+                <span class="adm-nav-icon">📋</span> Orders
+            </a>
+            <a href="{{ url_for('admin.manage_products') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'products' }}">
+                <span class="adm-nav-icon">📦</span> Products
+            </a>
+            <a href="{{ url_for('admin.manage_users') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'users' }}">
+                <span class="adm-nav-icon">👥</span> Users
+            </a>
+            <a href="{{ url_for('admin.manage_sellers') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'sellers' }}">
+                <span class="adm-nav-icon">🏪</span> Sellers
+            </a>
+            <a href="{{ url_for('admin.manage_riders') }}"
+               class="adm-nav-item {{ 'adm-nav-active' if active_page == 'riders' }}">
+                <span class="adm-nav-icon">🏍️</span> Riders
+            </a>
+
+            <div class="adm-nav-label">Account</div>
+            <a href="{{ url_for('main.index') }}" class="adm-nav-item">
+                <span class="adm-nav-icon">🌐</span> View Site
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="adm-nav-item adm-nav-logout">
+                <span class="adm-nav-icon">🚪</span> Logout
+            </a>
+        </nav>
+    </aside>
+
+    {# ── Main content slot ── #}
+    <div class="adm-main">
+{% endmacro %}
+
+{% macro end_admin_layout() %}
+    </div>{# /adm-main #}
+</div>{# /adm-wrap #}
+
+<style>
+/* ── Admin shell ── */
+.adm-wrap {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 78px);
+    margin: -1rem -12px 0;
+}
+@media (max-width: 900px) {
+    .adm-wrap { grid-template-columns: 1fr; }
+    .adm-sidebar { display: none; }
+}
+
+/* Sidebar */
+.adm-sidebar {
+    background: #0d0f18;
+    border-right: 1px solid rgba(255,255,255,.06);
+    padding: 1.5rem 0;
+    position: sticky;
+    top: 78px;
+    height: calc(100vh - 78px);
+    overflow-y: auto;
+}
+.adm-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 0 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    margin-bottom: 1rem;
+}
+.adm-brand-icon { font-size: 1.4rem; }
+.adm-brand-name { color: #fff; font-weight: 700; font-size: .95rem; line-height: 1.2; }
+.adm-brand-sub  { color: #c8a96e; font-size: .72rem; letter-spacing: 1px; text-transform: uppercase; }
+
+.adm-nav { padding: 0 .75rem; }
+.adm-nav-label {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #555;
+    padding: 1rem .5rem .4rem;
+}
+.adm-nav-item {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .6rem .75rem;
+    border-radius: 8px;
+    font-size: .85rem;
+    font-weight: 500;
+    color: #aaa;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    margin-bottom: 2px;
+}
+.adm-nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.adm-nav-active { background: rgba(200,169,110,.12) !important; color: #c8a96e !important; font-weight: 600; }
+.adm-nav-icon { font-size: .95rem; width: 20px; text-align: center; flex-shrink: 0; }
+.adm-nav-logout { color: #f87171; }
+.adm-nav-logout:hover { background: rgba(248,113,113,.1); color: #f87171; }
+
+/* Main area */
+.adm-main { padding: 2rem 1.75rem; background: #f4f5f7; min-height: calc(100vh - 78px); }
+
+/* Page header */
+.adm-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+.adm-page-title { font-size: 1.4rem; font-weight: 800; color: #1a1a2e; margin: 0; }
+.adm-page-sub   { font-size: .82rem; color: #888; margin-top: .2rem; }
+
+/* Stat cards */
+.adm-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+@media (max-width: 1100px) { .adm-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .adm-stats { grid-template-columns: 1fr; } }
+
+.adm-stat-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid #e8e8ec;
+    box-shadow: 0 1px 6px rgba(0,0,0,.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.adm-stat-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.adm-stat-icon-blue   { background: #eff6ff; }
+.adm-stat-icon-green  { background: #f0fdf4; }
+.adm-stat-icon-amber  { background: #fffbeb; }
+.adm-stat-icon-purple { background: #faf5ff; }
+.adm-stat-icon-red    { background: #fff1f2; }
+.adm-stat-icon-teal   { background: #f0fdfa; }
+
+.adm-stat-value { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+.adm-stat-label { font-size: .78rem; color: #888; margin-top: .25rem; font-weight: 500; }
+.adm-stat-delta {
+    font-size: .72rem; font-weight: 600;
+    padding: .15rem .5rem; border-radius: 999px;
+    margin-top: .3rem; display: inline-block;
+}
+.adm-delta-warn { background: #fef3c7; color: #92400e; }
+.adm-delta-ok   { background: #d1fae5; color: #065f46; }
+
+/* Content card */
+.adm-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e8e8ec;
+    box-shadow: 0 1px 6px rgba(0,0,0,.04);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+}
+.adm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f0f0f4;
+    background: #fafafa;
+}
+.adm-card-title { font-size: .95rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.adm-card-body  { padding: 1.5rem; }
+
+/* Tables */
+.adm-table { width: 100%; border-collapse: collapse; }
+.adm-table thead th {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: #888;
+    padding: .75rem 1.25rem;
+    border-bottom: 1px solid #f0f0f4;
+    background: #fafafa;
+    white-space: nowrap;
+}
+.adm-table tbody td {
+    padding: .9rem 1.25rem;
+    border-bottom: 1px solid #f8f8fb;
+    font-size: .875rem;
+    color: #333;
+    vertical-align: middle;
+}
+.adm-table tbody tr:last-child td { border-bottom: none; }
+.adm-table tbody tr:hover td { background: #fafbff; }
+
+/* Status badges */
+.adm-badge {
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    letter-spacing: .3px;
+    display: inline-block;
+}
+.adm-badge-pending  { background: #fef3c7; color: #92400e; }
+.adm-badge-verified { background: #dbeafe; color: #1e40af; }
+.adm-badge-assigned { background: #cffafe; color: #155e75; }
+.adm-badge-shipped  { background: #f3f4f6; color: #374151; }
+.adm-badge-delivered{ background: #d1fae5; color: #065f46; }
+.adm-badge-cancelled{ background: #fee2e2; color: #991b1b; }
+.adm-badge-active   { background: #d1fae5; color: #065f46; }
+.adm-badge-inactive { background: #fee2e2; color: #991b1b; }
+.adm-badge-buyer    { background: #dbeafe; color: #1e40af; }
+.adm-badge-seller   { background: #d1fae5; color: #065f46; }
+.adm-badge-rider    { background: #fef3c7; color: #92400e; }
+.adm-badge-admin    { background: #fee2e2; color: #991b1b; }
+
+/* Action buttons */
+.adm-btn {
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .35rem .85rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: .3px;
+}
+.adm-btn:hover { opacity: .85; transform: translateY(-1px); }
+.adm-btn-approve  { background: #d1fae5; color: #065f46; }
+.adm-btn-danger   { background: #fee2e2; color: #991b1b; }
+.adm-btn-warning  { background: #fef3c7; color: #92400e; }
+.adm-btn-primary  { background: #1a1a2e; color: #fff; }
+.adm-btn-ghost    { background: #f3f4f6; color: #374151; }
+
+/* Pagination */
+.adm-pagination {
+    display: flex;
+    gap: .35rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #f0f0f4;
+    justify-content: flex-end;
+}
+.adm-page-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid #e8e8ec;
+    background: #fff;
+    font-size: .8rem;
+    font-weight: 600;
+    color: #555;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+    transition: background .15s;
+}
+.adm-page-btn:hover { background: #f3f4f6; color: #1a1a2e; }
+.adm-page-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+</style>
+{% endmacro %}

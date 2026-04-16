@@ -3,7 +3,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from config import config
 from models import db, User
-from routes import auth_bp, main_bp, products_bp, orders_bp, admin_bp, wishlist_bp
+from routes import auth_bp, main_bp, products_bp, orders_bp, admin_bp, wishlist_bp, messages_bp
 import os
 
 mail = Mail()
@@ -30,6 +30,7 @@ def create_app(config_name='development'):
     app.register_blueprint(orders_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(wishlist_bp)
+    app.register_blueprint(messages_bp)
 
     with app.app_context():
         db.create_all()

@@ -1,66 +1,212 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'dashboard' %}
 
-{% block title %}Admin Dashboard - Mode S7vn{% endblock %}
+{% block title %}Dashboard — Mode S7vn Admin{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h1>Admin Dashboard</h1>
+
+{# ── KPI Cards ── #}
+<div class="adm-kpi-grid">
+
+    <div class="adm-kpi">
+        <div class="adm-kpi-header">
+            <span class="adm-kpi-label">Revenue (Delivered)</span>
+            <div class="adm-kpi-icon kpi-green">💰</div>
+        </div>
+        <div class="adm-kpi-value">₱{{ "%.2f"|format(stats.revenue) }}</div>
+        <div class="adm-kpi-sub">GMV: <strong>₱{{ "%.2f"|format(stats.gmv) }}</strong></div>
     </div>
+
+    <div class="adm-kpi">
+        <div class="adm-kpi-header">
+            <span class="adm-kpi-label">Total Orders</span>
+            <div class="adm-kpi-icon kpi-blue">📋</div>
+        </div>
+        <div class="adm-kpi-value">{{ stats.total_orders }}</div>
+        <div class="adm-kpi-sub">
+            {% if stats.verified_orders %}
+            <span class="adm-kpi-badge badge-warn">{{ stats.verified_orders }} need rider</span>
+            {% else %}
+            <span class="adm-kpi-badge badge-ok">All assigned</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="adm-kpi">
+        <div class="adm-kpi-header">
+            <span class="adm-kpi-label">Active Users</span>
+            <div class="adm-kpi-icon kpi-purple">👥</div>
+        </div>
+        <div class="adm-kpi-value">{{ stats.total_users }}</div>
+        <div class="adm-kpi-sub">
+            <strong>{{ stats.role_active.get('buyer', 0) }}</strong> buyers ·
+            <strong>{{ stats.role_active.get('seller', 0) }}</strong> sellers ·
+            <strong>{{ stats.role_active.get('rider', 0) }}</strong> riders
+        </div>
+    </div>
+
+    <div class="adm-kpi">
+        <div class="adm-kpi-header">
+            <span class="adm-kpi-label">Active Deliveries</span>
+            <div class="adm-kpi-icon kpi-teal">🏍️</div>
+        </div>
+        <div class="adm-kpi-value">{{ stats.active_deliveries }}</div>
+        <div class="adm-kpi-sub">Orders currently in transit</div>
+    </div>
+
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-3">
-        <div class="card text-center bg-primary text-white">
-            <div class="card-body">
-                <h5 class="card-title">Total Users</h5>
-                <p class="card-text display-4">{{ stats.total_users }}</p>
+{# ── Action Required alerts ── #}
+{% if stats.pending_users or stats.verified_orders %}
+<div class="adm-alert-row">
+    {% if stats.pending_users %}
+    <a href="{{ url_for('admin.manage_users', status='pending') }}" class="adm-alert-card adm-alert-amber">
+        <span class="adm-alert-icon">⏳</span>
+        <div>
+            <div class="adm-alert-title">{{ stats.pending_users }} Pending Approval{{ 's' if stats.pending_users != 1 }}</div>
+            <div class="adm-alert-sub">
+                {% if stats.pending_sellers %}{{ stats.pending_sellers }} seller{{ 's' if stats.pending_sellers != 1 }}{% endif %}
+                {% if stats.pending_sellers and stats.pending_riders %} · {% endif %}
+                {% if stats.pending_riders %}{{ stats.pending_riders }} rider{{ 's' if stats.pending_riders != 1 }}{% endif %}
+                need KYC review →
             </div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center bg-success text-white">
-            <div class="card-body">
-                <h5 class="card-title">Total Products</h5>
-                <p class="card-text display-4">{{ stats.total_products }}</p>
-            </div>
+    </a>
+    {% endif %}
+    {% if stats.verified_orders %}
+    <a href="{{ url_for('admin.manage_orders') }}" class="adm-alert-card adm-alert-blue">
+        <span class="adm-alert-icon">🚴</span>
+        <div>
+            <div class="adm-alert-title">{{ stats.verified_orders }} Order{{ 's' if stats.verified_orders != 1 }} Awaiting Rider</div>
+            <div class="adm-alert-sub">Verified by seller — assign a rider now →</div>
+        </div>
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Charts ── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+
+    <div class="adm-card">
+        <div class="adm-card-header">
+            <span class="adm-card-title">Revenue — Last 7 Days</span>
+        </div>
+        <div class="adm-card-body" style="padding:1.25rem;">
+            <canvas id="revenueChart" height="120"></canvas>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center bg-info text-white">
-            <div class="card-body">
-                <h5 class="card-title">Total Orders</h5>
-                <p class="card-text display-4">{{ stats.total_orders }}</p>
-            </div>
+
+    <div class="adm-card">
+        <div class="adm-card-header">
+            <span class="adm-card-title">New Users — Last 7 Days</span>
+        </div>
+        <div class="adm-card-body" style="padding:1.25rem;">
+            <canvas id="usersChart" height="120"></canvas>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center bg-warning text-dark">
-            <div class="card-body">
-                <h5 class="card-title">Total Revenue</h5>
-                <p class="card-text display-4">₱{{ "%.2f"|format(stats.total_revenue) }}</p>
-            </div>
-        </div>
-    </div>
+
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Admin Tools</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    <a href="{{ url_for('admin.manage_users') }}" class="list-group-item list-group-item-action">👥 Manage Users</a>
-                    <a href="{{ url_for('admin.manage_products') }}" class="list-group-item list-group-item-action">📦 Manage Products</a>
-                    <a href="{{ url_for('admin.manage_orders') }}" class="list-group-item list-group-item-action">📋 Manage Orders</a>
-                    <a href="{{ url_for('admin.manage_sellers') }}" class="list-group-item list-group-item-action">🏪 Manage Sellers</a>
-                    <a href="{{ url_for('admin.manage_riders') }}" class="list-group-item list-group-item-action">🚚 Manage Riders</a>
-                    <a href="{{ url_for('admin.reports') }}" class="list-group-item list-group-item-action">📊 View Reports</a>
-                </div>
-            </div>
-        </div>
+{# ── Recent Orders ── #}
+<div class="adm-card">
+    <div class="adm-card-header">
+        <span class="adm-card-title">Recent Orders</span>
+        <a href="{{ url_for('admin.manage_orders') }}" class="adm-btn adm-btn-ghost">View All →</a>
     </div>
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Buyer</th>
+                <th>Seller</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in recent_orders %}
+            {% set s = order.status %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}"
+                       style="font-weight:600;color:#111827;text-decoration:none;">
+                        {{ order.order_number }}
+                    </a>
+                </td>
+                <td style="color:#374151;">{{ order.buyer.username }}</td>
+                <td style="color:#6b7280;">{{ order.seller_user.username if order.seller_user else '—' }}</td>
+                <td style="font-weight:600;">₱{{ "%.2f"|format(order.total_amount) }}</td>
+                <td><span class="adm-badge adm-badge-{{ s }}">{{ s.upper() }}</span></td>
+                <td style="color:#9ca3af;font-size:.78rem;">{{ order.created_at.strftime('%b %d, %Y') }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align:center;color:#9ca3af;padding:2.5rem;">
+                    No orders yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const labels  = {{ chart_labels | tojson }}
+const revenue = {{ chart_revenue | tojson }}
+const users   = {{ chart_users | tojson }}
+
+const chartDefaults = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af' } },
+        y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 }, color: '#9ca3af' }, beginAtZero: true }
+    }
+}
+
+new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            data: revenue,
+            borderColor: '#059669',
+            backgroundColor: 'rgba(5,150,105,.08)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#059669',
+            fill: true,
+            tension: .4
+        }]
+    },
+    options: {
+        ...chartDefaults,
+        scales: {
+            ...chartDefaults.scales,
+            y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '₱' + v } }
+        }
+    }
+})
+
+new Chart(document.getElementById('usersChart'), {
+    type: 'bar',
+    data: {
+        labels,
+        datasets: [{
+            data: users,
+            backgroundColor: 'rgba(99,102,241,.15)',
+            borderColor: '#6366f1',
+            borderWidth: 2,
+            borderRadius: 6,
+        }]
+    },
+    options: chartDefaults
+})
+</script>
 {% endblock %}

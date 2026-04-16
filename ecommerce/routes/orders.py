@@ -1,11 +1,47 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from models import db, Product, Order, OrderItem, Payment, PaymentStatus, OrderStatus
+from models import db, Product, ProductVariant, Order, OrderItem, Payment, PaymentStatus, OrderStatus
 from datetime import datetime
 import uuid
 import json
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/orders')
+
+
+# ── Email helper ──────────────────────────────────────────────────────────────
+
+def send_order_status_email(order):
+    """Fire-and-forget order status email to the buyer."""
+    try:
+        from flask_mail import Message as MailMessage
+        from app import mail
+        from flask import current_app
+        buyer = order.buyer
+        if not buyer or not buyer.email:
+            return
+        html = render_template(
+            'email/order_status.html',
+            username=buyer.username,
+            order_number=order.order_number,
+            status=order.status,
+            total=order.total_amount,
+            address=f"{order.delivery_address}, {order.delivery_city}",
+            order_url=url_for('orders.order_detail', order_id=order.id, _external=True)
+        )
+        subject_map = {
+            'pending':   'Order Received',
+            'verified':  'Order Verified by Seller',
+            'assigned':  'Rider Assigned to Your Order',
+            'shipped':   'Your Order is Out for Delivery',
+            'delivered': 'Your Order Has Been Delivered',
+            'cancelled': 'Your Order Has Been Cancelled',
+        }
+        subject = f"Mode S7vn — {subject_map.get(order.status, 'Order Update')} ({order.order_number})"
+        msg = MailMessage(subject, recipients=[buyer.email], html=html)
+        mail.send(msg)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f'Order status email failed: {e}')
 
 
 # ── Cart helpers ──────────────────────────────────────────────────────────────
@@ -26,65 +62,107 @@ def cart():
     cart_items = []
     total = 0.0
 
-    for pid_str, qty in cart.items():
-        product = Product.query.get(int(pid_str))
-        if product and product.is_active:
-            subtotal = product.price * qty
-            total += subtotal
-            cart_items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
+    for cart_key, qty in cart.items():
+        pid, vid = _parse_cart_key(cart_key)
+        product = Product.query.get(pid)
+        if not product or not product.is_active:
+            continue
+        variant = ProductVariant.query.get(vid) if vid else None
+        price   = variant.effective_price if variant else product.price
+        subtotal = price * qty
+        total   += subtotal
+        cart_items.append({
+            'cart_key': cart_key,
+            'product': product,
+            'variant': variant,
+            'quantity': qty,
+            'price': price,
+            'subtotal': subtotal
+        })
 
     return render_template('cart.html', cart_items=cart_items, total=total)
 
 
+def _parse_cart_key(key):
+    """Return (product_id, variant_id_or_None) from a cart key."""
+    parts = str(key).split(':')
+    pid = int(parts[0])
+    vid = int(parts[1]) if len(parts) > 1 and parts[1] != '0' else None
+    return pid, vid
+
+
 @orders_bp.route('/add-to-cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
-    product = Product.query.get_or_404(product_id)
-    quantity = request.form.get('quantity', 1, type=int)
+    product    = Product.query.get_or_404(product_id)
+    quantity   = request.form.get('quantity', 1, type=int)
+    variant_id = request.form.get('variant_id', type=int)
 
     if quantity < 1:
         quantity = 1
-    if quantity > product.stock:
-        flash(f'Only {product.stock} units available.', 'warning')
-        quantity = product.stock
+
+    # Require variant selection if product has variants
+    if product.variants.count() > 0 and not variant_id:
+        flash('Please select a size before adding to cart.', 'warning')
+        return redirect(url_for('products.view_product', product_id=product_id))
+
+    if variant_id:
+        variant = ProductVariant.query.get_or_404(variant_id)
+        avail = variant.stock
+    else:
+        avail = product.stock
+
+    if avail == 0:
+        flash('This item is out of stock.', 'warning')
+        return redirect(url_for('products.view_product', product_id=product_id))
+
+    if quantity > avail:
+        flash(f'Only {avail} units available.', 'warning')
+        quantity = avail
 
     cart = get_cart()
 
     # Enforce single-seller cart
     if cart:
-        existing_pid = next(iter(cart))
-        existing_product = Product.query.get(int(existing_pid))
+        existing_key = next(iter(cart))
+        existing_pid = int(existing_key.split(':')[0])
+        existing_product = Product.query.get(existing_pid)
         if existing_product and existing_product.seller_id != product.seller_id:
-            flash('Your cart contains items from a different seller. Clear your cart first to add this item.', 'warning')
+            flash('Your cart contains items from a different seller. Clear your cart first.', 'warning')
             return redirect(url_for('products.view_product', product_id=product_id))
 
-    pid_str = str(product_id)
-    cart[pid_str] = cart.get(pid_str, 0) + quantity
+    cart_key = f"{product_id}:{variant_id or 0}"
+    cart[cart_key] = cart.get(cart_key, 0) + quantity
     save_cart(cart)
 
     flash(f'{product.name} added to cart!', 'success')
     return redirect(url_for('products.view_product', product_id=product_id))
 
 
-@orders_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
-def remove_from_cart(product_id):
+@orders_bp.route('/remove-from-cart/<path:cart_key>', methods=['POST'])
+def remove_from_cart(cart_key):
     cart = get_cart()
-    cart.pop(str(product_id), None)
+    cart.pop(cart_key, None)
     save_cart(cart)
     flash('Item removed from cart.', 'info')
     return redirect(url_for('orders.cart'))
 
 
-@orders_bp.route('/update-cart/<int:product_id>', methods=['POST'])
-def update_cart(product_id):
+@orders_bp.route('/update-cart/<path:cart_key>', methods=['POST'])
+def update_cart(cart_key):
     quantity = request.form.get('quantity', 1, type=int)
     cart = get_cart()
-    pid_str = str(product_id)
+    pid, vid = _parse_cart_key(cart_key)
 
     if quantity < 1:
-        cart.pop(pid_str, None)
+        cart.pop(cart_key, None)
     else:
-        product = Product.query.get_or_404(product_id)
-        cart[pid_str] = min(quantity, product.stock)
+        if vid:
+            variant = ProductVariant.query.get(vid)
+            max_stock = variant.stock if variant else 0
+        else:
+            product = Product.query.get(pid)
+            max_stock = product.stock if product else 0
+        cart[cart_key] = min(quantity, max_stock)
 
     save_cart(cart)
     return redirect(url_for('orders.cart'))
@@ -95,18 +173,30 @@ def update_cart(product_id):
 @orders_bp.route('/buy-now/<int:product_id>', methods=['POST'])
 @login_required
 def buy_now(product_id):
-    """Store item in a temporary buy-now session — does NOT touch the real cart."""
-    product = Product.query.get_or_404(product_id)
-    quantity = request.form.get('quantity', 1, type=int)
+    product    = Product.query.get_or_404(product_id)
+    quantity   = request.form.get('quantity', 1, type=int)
+    variant_id = request.form.get('variant_id', type=int)
 
     if quantity < 1:
         quantity = 1
-    if quantity > product.stock:
-        flash(f'Only {product.stock} units available.', 'warning')
+
+    # If product has variants and none was selected, send back to product page
+    variants = product.variants.all()
+    if variants and not variant_id:
+        flash('Please select a size before buying.', 'warning')
         return redirect(url_for('products.view_product', product_id=product_id))
 
-    # Store in a separate key — real cart is untouched
-    session['buy_now_item'] = {'product_id': product_id, 'quantity': quantity}
+    if variant_id:
+        variant = ProductVariant.query.get_or_404(variant_id)
+        avail = variant.stock
+    else:
+        avail = product.stock
+
+    if quantity > avail:
+        flash(f'Only {avail} units available.', 'warning')
+        return redirect(url_for('products.view_product', product_id=product_id))
+
+    session['buy_now_item'] = {'product_id': product_id, 'quantity': quantity, 'variant_id': variant_id}
     session.modified = True
     return redirect(url_for('orders.checkout', mode='buy_now'))
 
@@ -130,9 +220,8 @@ def cancel_buy_now():
 @orders_bp.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    mode = request.args.get('mode', 'cart')  # 'cart' or 'buy_now'
+    mode = request.args.get('mode', 'cart')
 
-    # Build working items from the right source
     def build_items(qty_overrides=None):
         items = []
         total = 0.0
@@ -140,45 +229,53 @@ def checkout():
             bn = session.get('buy_now_item')
             if bn:
                 product = Product.query.get(bn['product_id'])
+                variant = ProductVariant.query.get(bn['variant_id']) if bn.get('variant_id') else None
                 if product and product.is_active:
-                    qty = qty_overrides.get(str(product.id), bn['quantity']) if qty_overrides else bn['quantity']
-                    qty = max(1, min(int(qty), product.stock))
-                    subtotal = product.price * qty
+                    cart_key = f"{bn['product_id']}:{bn.get('variant_id') or 0}"
+                    qty = qty_overrides.get(cart_key, bn['quantity']) if qty_overrides else bn['quantity']
+                    avail = variant.stock if variant else product.stock
+                    qty = max(1, min(int(qty), avail))
+                    price = variant.effective_price if variant else product.price
+                    subtotal = price * qty
                     total += subtotal
-                    items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
+                    items.append({'product': product, 'variant': variant,
+                                  'quantity': qty, 'price': price, 'subtotal': subtotal,
+                                  'cart_key': cart_key})
         else:
             cart = get_cart()
-            for pid_str, qty in cart.items():
-                product = Product.query.get(int(pid_str))
+            for cart_key, qty in cart.items():
+                pid, vid = _parse_cart_key(cart_key)
+                product = Product.query.get(pid)
+                variant = ProductVariant.query.get(vid) if vid else None
                 if product and product.is_active:
-                    qty = qty_overrides.get(pid_str, qty) if qty_overrides else qty
-                    qty = max(1, min(int(qty), product.stock))
-                    subtotal = product.price * qty
+                    qty = qty_overrides.get(cart_key, qty) if qty_overrides else qty
+                    avail = variant.stock if variant else product.stock
+                    qty = max(1, min(int(qty), avail))
+                    price = variant.effective_price if variant else product.price
+                    subtotal = price * qty
                     total += subtotal
-                    items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
+                    items.append({'product': product, 'variant': variant,
+                                  'quantity': qty, 'price': price, 'subtotal': subtotal,
+                                  'cart_key': cart_key})
         return items, round(total, 2)
 
     if mode == 'buy_now' and not session.get('buy_now_item'):
         flash('Nothing to checkout.', 'warning')
         return redirect(url_for('products.list_products'))
-
     if mode == 'cart' and not get_cart():
         flash('Your cart is empty.', 'warning')
         return redirect(url_for('orders.cart'))
 
     if request.method == 'POST':
-        # Read qty edits submitted from the form
         qty_overrides = {}
         for key, val in request.form.items():
             if key.startswith('qty_'):
-                pid = key[4:]
                 try:
-                    qty_overrides[pid] = int(val)
+                    qty_overrides[key[4:]] = int(val)
                 except ValueError:
                     pass
 
         cart_items, total = build_items(qty_overrides)
-
         if not cart_items:
             flash('No valid items.', 'warning')
             return redirect(url_for('orders.cart'))
@@ -192,7 +289,6 @@ def checkout():
             return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
 
         seller_id = cart_items[0]['product'].seller_id
-
         order = Order(
             order_number=f"ORD-{uuid.uuid4().hex[:8].upper()}",
             buyer_id=current_user.id,
@@ -208,18 +304,34 @@ def checkout():
 
         for item in cart_items:
             product = item['product']
+            variant = item['variant']
             qty     = item['quantity']
-            if product.stock < qty:
-                db.session.rollback()
-                flash(f'Not enough stock for {product.name}.', 'danger')
-                return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
-            product.stock -= qty
+
+            # Variant-level stock deduction
+            if variant:
+                if variant.stock < qty:
+                    db.session.rollback()
+                    flash(f'Not enough stock for {product.name} ({variant.size}{("/" + variant.color) if variant.color else ""}).', 'danger')
+                    return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
+                variant.stock -= qty
+                # Keep parent stock in sync
+                product.stock = max(0, product.stock - qty)
+            else:
+                if product.stock < qty:
+                    db.session.rollback()
+                    flash(f'Not enough stock for {product.name}.', 'danger')
+                    return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
+                product.stock -= qty
+
             db.session.add(OrderItem(
                 order_id=order.id,
                 product_id=product.id,
+                variant_id=variant.id if variant else None,
                 quantity=qty,
-                price=product.price,
-                subtotal=round(product.price * qty, 2)
+                price=item['price'],
+                subtotal=item['subtotal'],
+                variant_size=variant.size if variant else None,
+                variant_color=variant.color if variant else None,
             ))
 
         db.session.add(Payment(
@@ -228,15 +340,14 @@ def checkout():
             method='cod',
             status=PaymentStatus.PENDING.value
         ))
-
         db.session.commit()
 
-        # Clear the right source
         if mode == 'buy_now':
             session.pop('buy_now_item', None)
         else:
             save_cart({})
 
+        send_order_status_email(order)
         flash('Order placed! Waiting for seller to verify.', 'success')
         return redirect(url_for('orders.order_detail', order_id=order.id))
 
@@ -278,13 +389,7 @@ def my_orders():
 @orders_bp.route('/seller/received')
 @login_required
 def seller_received_orders():
-    if not current_user.is_seller():
-        flash('Only sellers can view this.', 'danger')
-        return redirect(url_for('main.index'))
-
-    orders = Order.query.filter_by(seller_id=current_user.id)\
-        .order_by(Order.created_at.desc()).all()
-    return render_template('seller_orders.html', orders=orders)
+    return redirect(url_for('products.seller_orders'))
 
 
 @orders_bp.route('/<int:order_id>/verify', methods=['POST'])
@@ -307,8 +412,9 @@ def verify_order(order_id):
 
     order.status = OrderStatus.VERIFIED.value
     db.session.commit()
+    send_order_status_email(order)
     flash(f'Order {order.order_number} verified! Ready to assign a rider.', 'success')
-    return redirect(url_for('orders.seller_received_orders'))
+    return redirect(url_for('products.seller_orders'))
 
 
 @orders_bp.route('/<int:order_id>/cancel', methods=['POST'])
@@ -324,16 +430,22 @@ def cancel_order(order_id):
         flash('Not authorized to cancel this order.', 'danger')
         return redirect(url_for('orders.order_detail', order_id=order_id))
 
-    # Restore stock
+    # Restore stock at variant level
     for item in order.items:
-        item.product.stock += item.quantity
+        if item.variant_id and item.variant:
+            item.variant.stock += item.quantity
+            item.product.stock = min(item.product.stock + item.quantity,
+                                     sum(v.stock for v in item.product.variants.all()))
+        else:
+            item.product.stock += item.quantity
 
     order.status = OrderStatus.CANCELLED.value
     db.session.commit()
+    send_order_status_email(order)
     flash(f'Order {order.order_number} cancelled.', 'info')
 
     if current_user.is_seller():
-        return redirect(url_for('orders.seller_received_orders'))
+        return redirect(url_for('products.seller_orders'))
     return redirect(url_for('orders.my_orders'))
 
 
@@ -359,6 +471,7 @@ def pickup_order(order_id):
 
     order.status = OrderStatus.SHIPPED.value
     db.session.commit()
+    send_order_status_email(order)
     flash(f'Order {order.order_number} marked as picked up.', 'success')
     return redirect(url_for('main.dashboard'))
 
@@ -388,6 +501,7 @@ def deliver_order(order_id):
         order.payment.status = 'collected'
 
     db.session.commit()
+    send_order_status_email(order)
     flash(f'Order {order.order_number} delivered! Cash collected.', 'success')
     return redirect(url_for('main.dashboard'))
 
@@ -415,5 +529,6 @@ def update_order_status(order_id):
         order.delivered_at = datetime.utcnow()
 
     db.session.commit()
+    send_order_status_email(order)
     flash('Order status updated.', 'success')
     return redirect(url_for('orders.order_detail', order_id=order_id))

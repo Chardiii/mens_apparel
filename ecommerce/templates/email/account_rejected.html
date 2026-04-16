@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#f5f5f0;padding:30px;">
+<div style="max-width:520px;margin:auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e0ddd5;">
+    <div style="background:#0d0d0d;padding:24px 32px;">
+        <h1 style="color:#c8a96e;margin:0;letter-spacing:3px;font-size:1.4rem;">MODE S7VN</h1>
+    </div>
+    <div style="padding:32px;">
+        <h2 style="margin-top:0;color:#991b1b;">Account Not Approved</h2>
+        <p>Hi <strong>{{ username }}</strong>,</p>
+        <p>After reviewing your registration, we were unable to approve your Mode S7vn account at this time.</p>
+        {% if reason %}
+        <div style="background:#fff1f2;border-left:4px solid #f87171;padding:12px 16px;border-radius:4px;margin:20px 0;">
+            <p style="margin:0;font-size:.9rem;color:#991b1b;"><strong>Reason:</strong> {{ reason }}</p>
+        </div>
+        {% endif %}
+        <p style="color:#555;">If you believe this is a mistake or would like to resubmit with corrected documents, please contact our support team.</p>
+    </div>
+    <div style="background:#f5f5f0;padding:16px 32px;text-align:center;">
+        <p style="color:#aaa;font-size:.8rem;margin:0;">&copy; 2024 Mode S7vn. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

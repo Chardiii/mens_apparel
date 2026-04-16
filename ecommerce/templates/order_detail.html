@@ -38,7 +38,25 @@
                     <tbody>
                         {% for item in order.items %}
                         <tr>
-                            <td>{{ item.product.name }}</td>
+                            <td>
+                                <div style="font-weight:600;">{{ item.product.name }}</div>
+                                {% if item.variant_size or item.variant_color %}
+                                <div style="display:flex;gap:.3rem;margin-top:.25rem;flex-wrap:wrap;">
+                                    {% if item.variant_size %}
+                                    <span style="background:#f3f4f6;color:#374151;font-size:.7rem;
+                                                 font-weight:600;padding:.15rem .5rem;border-radius:999px;">
+                                        {{ item.variant_size }}
+                                    </span>
+                                    {% endif %}
+                                    {% if item.variant_color %}
+                                    <span style="background:#f3f4f6;color:#374151;font-size:.7rem;
+                                                 font-weight:600;padding:.15rem .5rem;border-radius:999px;">
+                                        {{ item.variant_color }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
                             <td class="text-center">{{ item.quantity }}</td>
                             <td class="text-end">₱{{ "%.2f"|format(item.price) }}</td>
                             <td class="text-end">₱{{ "%.2f"|format(item.subtotal) }}</td>
@@ -101,6 +119,8 @@
                             onclick="return confirm('Cancel this order?')">Cancel Order</button>
                     </form>
                     {% endif %}
+                    <a href="{{ url_for('messages.thread', partner_id=order.buyer_id, order_id=order.id) }}"
+                       class="btn btn-outline-secondary w-100">💬 Message Buyer</a>
                 {% endif %}
 
                 {# Buyer: cancel pending order #}
@@ -109,6 +129,10 @@
                     <button type="submit" class="btn btn-outline-danger w-100"
                         onclick="return confirm('Cancel this order?')">Cancel Order</button>
                 </form>
+                {% endif %}
+                {% if current_user.is_buyer() and order.buyer_id == current_user.id %}
+                <a href="{{ url_for('messages.thread', partner_id=order.seller_id, order_id=order.id) }}"
+                   class="btn btn-outline-secondary w-100">💬 Message Seller</a>
                 {% endif %}
 
                 {# Admin: full status control #}

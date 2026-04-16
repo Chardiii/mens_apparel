@@ -1,20 +1,22 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'sellers' %}
 
-{% block title %}Manage Sellers - Mode S7vn{% endblock %}
+{% block title %}Sellers — Mode S7vn Admin{% endblock %}
+{% block page_title %}Manage Sellers{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>Manage Sellers</h2>
+<div class="adm-page-header">
+    <div>
+        <h1 class="adm-page-title">Manage Sellers</h1>
+        <p class="adm-page-sub">{{ sellers.total }} registered sellers</p>
     </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-striped align-middle">
+<div class="adm-card">
+    <table class="adm-table">
         <thead>
             <tr>
-                <th>Username</th>
-                <th>Email</th>
+                <th>Seller</th>
                 <th>Shop Name</th>
                 <th>Products</th>
                 <th>Orders</th>
@@ -24,41 +26,40 @@
         <tbody>
             {% for seller in sellers.items %}
             <tr>
-                <td>{{ seller.username }}</td>
-                <td>{{ seller.email }}</td>
-                <td>{{ seller.shop_name or '—' }}</td>
-                <td><span class="badge bg-secondary">{{ seller.products.count() }}</span></td>
-                <td><span class="badge bg-info text-dark">{{ seller.seller_orders.count() }}</span></td>
                 <td>
-                    <span class="badge bg-{{ 'success' if seller.is_active else 'danger' }}">
+                    <div style="font-weight:600;color:#1a1a2e;">{{ seller.username }}</div>
+                    <div style="font-size:.78rem;color:#888;">{{ seller.email }}</div>
+                </td>
+                <td style="color:#555;">{{ seller.shop_name or '—' }}</td>
+                <td>
+                    <span style="font-size:.78rem;background:#f3f4f6;color:#374151;padding:.25rem .65rem;border-radius:999px;font-weight:600;">
+                        {{ seller.products.count() }}
+                    </span>
+                </td>
+                <td>
+                    <span style="font-size:.78rem;background:#dbeafe;color:#1e40af;padding:.25rem .65rem;border-radius:999px;font-weight:600;">
+                        {{ seller.seller_orders.count() }}
+                    </span>
+                </td>
+                <td>
+                    <span class="adm-badge {{ 'adm-badge-active' if seller.is_active else 'adm-badge-inactive' }}">
                         {{ 'Active' if seller.is_active else 'Inactive' }}
                     </span>
                 </td>
             </tr>
             {% else %}
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">No sellers registered yet.</td>
-            </tr>
+            <tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem;">No sellers registered yet.</td></tr>
             {% endfor %}
         </tbody>
     </table>
+    {% if sellers.pages > 1 %}
+    <div class="adm-pagination">
+        {% for p in sellers.iter_pages() %}
+            {% if p %}<a href="{{ url_for('admin.manage_sellers', page=p) }}" class="adm-page-btn {{ 'active' if p == sellers.page }}">{{ p }}</a>
+            {% else %}<span class="adm-page-btn">…</span>{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 
-{% if sellers.pages > 1 %}
-<nav>
-    <ul class="pagination">
-        {% for p in sellers.iter_pages() %}
-            {% if p %}
-            <li class="page-item {% if p == sellers.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.manage_sellers', page=p) }}">{{ p }}</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-            {% endif %}
-        {% endfor %}
-    </ul>
-</nav>
-{% endif %}
-
-<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-2">← Back to Dashboard</a>
 {% endblock %}

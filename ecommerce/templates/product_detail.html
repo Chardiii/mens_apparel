@@ -77,8 +77,9 @@
                 {% if product.category %}
                 <span class="pd-category-badge">{{ product.category }}</span>
                 {% endif %}
-                {% if product.stock > 0 %}
-                <span class="pd-stock-badge pd-stock-in">In Stock ({{ product.stock }} available)</span>
+                {% set total_stock = product.total_stock %}
+                {% if total_stock > 0 %}
+                <span class="pd-stock-badge pd-stock-in">In Stock ({{ total_stock }} available)</span>
                 {% else %}
                 <span class="pd-stock-badge pd-stock-out">Out of Stock</span>
                 {% endif %}
@@ -101,38 +102,108 @@
 
             <div class="pd-divider"></div>
 
-            {# Add to Cart #}
-            {% if product.stock > 0 and current_user.is_authenticated and current_user.is_buyer() %}
-            <form method="POST" action="{{ url_for('orders.add_to_cart', product_id=product.id) }}" class="pd-cart-form">
+            {# ── Variant selector ── #}
+            {% set variants = product.variants.all() %}
+            {% if variants %}
+            <div class="pd-variants-wrap" id="variantWrap">
+
+                {% set has_colors = variants | selectattr('color') | list | length > 0 %}
+                {% set sizes = [] %}
+                {% for v in variants %}{% if v.size not in sizes %}{% set _ = sizes.append(v.size) %}{% endif %}{% endfor %}
+                {% set colors = [] %}
+                {% for v in variants %}{% if v.color and v.color not in colors %}{% set _ = colors.append(v.color) %}{% endif %}{% endfor %}
+
+                {% if has_colors %}
+                <div class="pd-variant-group">
+                    <span class="pd-variant-label">COLOR: <strong id="selectedColor">—</strong></span>
+                    <div class="pd-swatch-row">
+                        {% for color in colors %}
+                        <button type="button" class="pd-swatch" data-color="{{ color }}"
+                                onclick="selectColor(this)">{{ color }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="pd-variant-group">
+                    <span class="pd-variant-label">SIZE: <strong id="selectedSize">—</strong></span>
+                    <div class="pd-size-row" id="sizeButtons">
+                        {% for size in sizes %}
+                        {% set size_stock = namespace(val=0) %}
+                        {% for v in variants %}{% if v.size == size %}{% set size_stock.val = size_stock.val + v.stock %}{% endif %}{% endfor %}
+                        <button type="button"
+                                class="pd-size-btn {% if size_stock.val == 0 %}pd-size-oos{% endif %}"
+                                data-size="{{ size }}"
+                                {% if size_stock.val == 0 %}disabled{% endif %}
+                                onclick="selectSize(this)">
+                            <span class="pd-size-label">{{ size }}</span>
+                            <span class="pd-size-stock">{{ size_stock.val if size_stock.val > 0 else 'OOS' }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div id="variantStock" style="margin-top:.6rem;display:none;"></div>
+                <div id="variantPrice" style="display:none;"></div>
+
+            </div>
+
+            {# Variant data as a proper JSON script tag — safest approach #}
+            <script id="variantJson" type="application/json">[
+                {%- for v in variants -%}
+                {"id":{{ v.id }},"size":{{ v.size|tojson }},"color":{{ (v.color or '')|tojson }},"stock":{{ v.stock }},"price_adj":{{ v.price_adj }}}
+                {%- if not loop.last %},{%- endif -%}
+                {%- endfor -%}
+            ]</script>
+            {% endif %}
+
+            {# ── Add to Cart / Buy Now ── #}
+            {% set total_stock = product.total_stock %}
+            {% if total_stock > 0 and current_user.is_authenticated and current_user.is_buyer() %}
+
+            <form method="POST" action="{{ url_for('orders.add_to_cart', product_id=product.id) }}"
+                  class="pd-cart-form" id="cartForm">
+                <input type="hidden" name="variant_id" id="cartVariantId" value="">
                 <div class="pd-qty-wrap">
                     <label class="pd-qty-label">QTY</label>
                     <div class="pd-qty-controls">
                         <button type="button" class="pd-qty-btn" onclick="adjustQty(-1)">−</button>
                         <input type="number" class="pd-qty-input" name="quantity" id="qty-input"
-                               value="1" min="1" max="{{ product.stock }}">
+                               value="1" min="1" max="{{ total_stock }}">
                         <button type="button" class="pd-qty-btn" onclick="adjustQty(1)">+</button>
                     </div>
                 </div>
-                <button type="submit" class="pd-btn-cart">
+                <button type="submit" class="pd-btn-cart" id="addToCartBtn"
+                        {% if variants %}disabled title="Select a size first"{% endif %}>
                     <span>🛒</span> ADD TO CART
                 </button>
             </form>
 
-            {# Buy Now / Checkout #}
-            <form method="POST" action="{{ url_for('orders.buy_now', product_id=product.id) }}" class="mb-2">
+            <form method="POST" action="{{ url_for('orders.buy_now', product_id=product.id) }}"
+                  class="mb-2" id="buyNowForm">
                 <input type="hidden" name="quantity" id="buy-now-qty" value="1">
-                <button type="submit" class="pd-btn-checkout">
+                <input type="hidden" name="variant_id" id="buyNowVariantId" value="">
+                <button type="submit" class="pd-btn-checkout" id="buyNowBtn"
+                        {% if variants %}disabled title="Select a size first"{% endif %}>
                     <span>⚡</span> BUY NOW
                 </button>
             </form>
 
-            {# Wishlist #}
             <button class="pd-btn-wishlist wishlist-btn"
                     data-product-id="{{ product.id }}"
                     data-wishlisted="{{ 'true' if wishlist_status else 'false' }}">
                 <span>{{ '♥' if wishlist_status else '♡' }}</span>
                 {{ 'WISHLISTED' if wishlist_status else 'ADD TO WISHLIST' }}
             </button>
+
+            <a href="{{ url_for('messages.thread', partner_id=product.seller_id, product_id=product.id) }}"
+               style="display:flex;align-items:center;justify-content:center;gap:.5rem;
+                      width:100%;background:#fff;border:1.5px solid #e0ddd5;color:#374151;
+                      padding:.65rem 1rem;border-radius:8px;font-weight:700;font-size:.82rem;
+                      letter-spacing:1px;text-decoration:none;transition:border-color .2s,color .2s;
+                      margin-bottom:.75rem;">
+                💬 MESSAGE SELLER
+            </a>
 
             {% elif not current_user.is_authenticated %}
             <a href="{{ url_for('auth.login') }}" class="pd-btn-cart" style="text-decoration:none;text-align:center;">
@@ -283,7 +354,9 @@
 .pd-main-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: #f8f6f1;
+    padding: 12px;
     display: block;
 }
 .pd-img-placeholder {
@@ -310,7 +383,9 @@
 .pd-thumb {
     width: 64px;
     height: 64px;
-    object-fit: cover;
+    object-fit: contain;
+    background: #f8f6f1;
+    padding: 4px;
     border-radius: 8px;
     border: 2px solid #ece9e1;
     cursor: pointer;
@@ -514,6 +589,86 @@
     gap: .5rem;
 }
 
+/* ── Variant selectors ── */
+.pd-variants-wrap { margin-bottom: 1rem; }
+.pd-variant-group { margin-bottom: .85rem; }
+.pd-variant-label {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+    display: block;
+    margin-bottom: .5rem;
+}
+.pd-variant-label strong { color: #111827; }
+.pd-size-row, .pd-swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+.pd-size-btn {
+    min-width: 52px;
+    height: 52px;
+    padding: 0 .75rem;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 8px;
+    background: #fff;
+    font-size: .85rem;
+    font-weight: 600;
+    color: #111827;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1;
+}
+.pd-size-label { font-size: .85rem; font-weight: 700; }
+.pd-size-stock { font-size: .62rem; color: #9ca3af; font-weight: 500; }
+.pd-size-btn.selected .pd-size-stock { color: #c8a96e; }
+.pd-size-btn:hover:not(:disabled) {
+    border-color: #111827;
+    background: #f8f6f1;
+}
+.pd-size-btn.selected {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+.pd-size-btn.pd-size-oos {
+    opacity: .35;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+.pd-swatch {
+    padding: .35rem .85rem;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 999px;
+    background: #fff;
+    font-size: .8rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.pd-swatch:hover { border-color: #111827; }
+.pd-swatch.selected { background: #111827; color: #fff; border-color: #111827; }
+.pd-variant-stock {
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .3rem .75rem;
+    border-radius: 999px;
+    display: inline-block;
+}
+.pd-variant-price {
+    font-size: .85rem;
+    color: #6b7280;
+    margin-top: .3rem;
+}
+
 .pd-btn-back {
     display: block;
     text-align: center;
@@ -635,15 +790,110 @@
 </style>
 
 <script>
+const VARIANTS = JSON.parse(document.getElementById('variantJson')?.textContent || '[]')
+const hasVariants = VARIANTS.length > 0
+const BASE_PRICE = {{ product.price }}
+
+let selectedSize  = null
+let selectedColor = null
+
+function getMatchingVariant() {
+    return VARIANTS.find(v =>
+        v.size === selectedSize && (!v.color || !selectedColor || v.color === selectedColor)
+    ) || null
+}
+
+function updateVariantUI() {
+    const v        = getMatchingVariant()
+    const stockEl  = document.getElementById('variantStock')
+    const priceEl  = document.getElementById('variantPrice')
+    const cartBtn  = document.getElementById('addToCartBtn')
+    const buyBtn   = document.getElementById('buyNowBtn')
+    const cartVid  = document.getElementById('cartVariantId')
+    const buyVid   = document.getElementById('buyNowVariantId')
+    const qtyInput = document.getElementById('qty-input')
+
+    if (!v) {
+        if (stockEl) stockEl.style.display = 'none'
+        if (priceEl) priceEl.style.display = 'none'
+        if (cartBtn) { cartBtn.disabled = true;  cartBtn.title = 'Select a size first' }
+        if (buyBtn)  { buyBtn.disabled  = true;  buyBtn.title  = 'Select a size first' }
+        return
+    }
+
+    // Stock badge
+    if (stockEl) {
+        if (v.stock === 0) {
+            stockEl.innerHTML = '<span style="background:#fee2e2;color:#991b1b;font-size:.78rem;font-weight:600;padding:.3rem .75rem;border-radius:999px;">Out of stock</span>'
+        } else {
+            stockEl.innerHTML = `<span style="background:#d1fae5;color:#065f46;font-size:.78rem;font-weight:600;padding:.3rem .75rem;border-radius:999px;">${v.stock} available</span>`
+        }
+        stockEl.style.display = 'block'
+    }
+
+    // Price adjustment
+    if (priceEl) {
+        if (v.price_adj !== 0) {
+            const sign = v.price_adj > 0 ? '+' : ''
+            priceEl.style.display = 'block'
+            priceEl.textContent = `Price: ₱${(BASE_PRICE + v.price_adj).toFixed(2)} (${sign}₱${v.price_adj.toFixed(2)})`
+        } else {
+            priceEl.style.display = 'none'
+        }
+    }
+
+    const canBuy = v.stock > 0
+    if (cartBtn) { cartBtn.disabled = !canBuy; cartBtn.title = canBuy ? '' : 'Out of stock' }
+    if (buyBtn)  { buyBtn.disabled  = !canBuy; buyBtn.title  = canBuy ? '' : 'Out of stock' }
+    if (cartVid) cartVid.value = v.id
+    if (buyVid)  buyVid.value  = v.id
+    if (qtyInput) {
+        qtyInput.max = v.stock
+        if (parseInt(qtyInput.value) > v.stock) qtyInput.value = Math.max(1, v.stock)
+    }
+}
+
+function selectSize(btn) {
+    if (btn.disabled) return
+    document.querySelectorAll('.pd-size-btn').forEach(b => b.classList.remove('selected'))
+    btn.classList.add('selected')
+    selectedSize = btn.dataset.size
+    const lbl = document.getElementById('selectedSize')
+    if (lbl) lbl.textContent = selectedSize
+    updateVariantUI()
+}
+
+function selectColor(btn) {
+    document.querySelectorAll('.pd-swatch').forEach(b => b.classList.remove('selected'))
+    btn.classList.add('selected')
+    selectedColor = btn.dataset.color
+    const lbl = document.getElementById('selectedColor')
+    if (lbl) lbl.textContent = selectedColor
+    // Re-evaluate size availability for this color
+    document.querySelectorAll('.pd-size-btn').forEach(sb => {
+        const size = sb.dataset.size
+        const v = VARIANTS.find(v => v.size === size && (!v.color || v.color === selectedColor))
+        const ok = v && v.stock > 0
+        sb.disabled = !ok
+        sb.classList.toggle('pd-size-oos', !ok)
+        if (!ok && sb.classList.contains('selected')) {
+            sb.classList.remove('selected')
+            selectedSize = null
+            const lbl2 = document.getElementById('selectedSize')
+            if (lbl2) lbl2.textContent = '—'
+        }
+    })
+    updateVariantUI()
+}
+
 function adjustQty(delta) {
     const input = document.getElementById('qty-input')
     if (!input) return
     const max = parseInt(input.max) || 99
     const min = parseInt(input.min) || 1
     input.value = Math.min(max, Math.max(min, parseInt(input.value || 1) + delta))
-    // Keep buy-now qty in sync
-    const buyNowQty = document.getElementById('buy-now-qty')
-    if (buyNowQty) buyNowQty.value = input.value
+    const bn = document.getElementById('buy-now-qty')
+    if (bn) bn.value = input.value
 }
 
 function goToSlide(index) {
@@ -653,7 +903,6 @@ function goToSlide(index) {
     document.querySelectorAll('.pd-thumb').forEach((t, i) => t.classList.toggle('active', i === index))
 }
 
-// Sync thumbnail active state with carousel
 const pdCarousel = document.getElementById('pdCarousel')
 if (pdCarousel) {
     pdCarousel.addEventListener('slid.bs.carousel', e => {

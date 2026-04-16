@@ -1,53 +1,195 @@
-{% extends "base.html" %}
+{% extends "seller_base.html" %}
+{% set active_page = 'add_product' %}
 
-{% block title %}Add Product - Mode S7vn{% endblock %}
+{% block title %}Add Product — Mode S7vn{% endblock %}
+{% block page_title %}Add Product{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Add New Product</h5></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('products.add_product') }}" enctype="multipart/form-data" data-validate>
-                    <div class="mb-3">
-                        <label class="form-label">Product Name</label>
-                        <input type="text" class="form-control" name="name" required>
+<div style="max-width:720px;">
+    <div class="sel-page-header">
+        <div>
+            <h1 class="sel-page-title">Add New Product</h1>
+            <p class="sel-page-sub">Fill in the details and define variants for your product.</p>
+        </div>
+    </div>
+
+    <div class="sel-card">
+        <div class="sel-card-body">
+            <form method="POST" action="{{ url_for('products.add_product') }}"
+                  enctype="multipart/form-data" id="addProductForm">
+
+                {# ── Basic info ── #}
+                <div style="margin-bottom:1.25rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                  letter-spacing:.5px;display:block;margin-bottom:.4rem;">Product Name *</label>
+                    <input type="text" name="name" required
+                           style="width:100%;padding:.55rem .85rem;border:1px solid #e5e7eb;border-radius:8px;
+                                  font-size:.9rem;color:#111827;outline:none;">
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                  letter-spacing:.5px;display:block;margin-bottom:.4rem;">Description</label>
+                    <textarea name="description" rows="3"
+                              style="width:100%;padding:.55rem .85rem;border:1px solid #e5e7eb;border-radius:8px;
+                                     font-size:.9rem;color:#111827;outline:none;resize:vertical;font-family:inherit;"></textarea>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+                    <div>
+                        <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                      letter-spacing:.5px;display:block;margin-bottom:.4rem;">Category *</label>
+                        <select name="category" id="categorySelect" required
+                                style="width:100%;padding:.55rem .85rem;border:1px solid #e5e7eb;border-radius:8px;
+                                       font-size:.9rem;color:#111827;outline:none;">
+                            <option value="">— Select Category —</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    <div>
+                        <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                      letter-spacing:.5px;display:block;margin-bottom:.4rem;">Base Price (₱) *</label>
+                        <input type="number" name="price" step="0.01" min="0" required
+                               style="width:100%;padding:.55rem .85rem;border:1px solid #e5e7eb;border-radius:8px;
+                                      font-size:.9rem;color:#111827;outline:none;">
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Category <span class="text-danger">*</span></label>
-                            <select class="form-select" name="category" required>
-                                <option value="">— Select Category —</option>
-                                {% for cat in categories %}
-                                <option value="{{ cat }}">{{ cat }}</option>
-                                {% endfor %}
-                            </select>
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                  letter-spacing:.5px;display:block;margin-bottom:.4rem;">Product Images</label>
+                    <input type="file" name="images" multiple accept="image/*"
+                           style="width:100%;padding:.45rem;border:1px solid #e5e7eb;border-radius:8px;font-size:.85rem;">
+                    <p style="font-size:.75rem;color:#9ca3af;margin-top:.3rem;">First image will be the primary display image.</p>
+                </div>
+
+                {# ── Variants section ── #}
+                <div id="variantSection" style="display:none;margin-bottom:1.25rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+                        <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">
+                            Variants &amp; Stock *
+                        </label>
+                        <button type="button" id="addVariantBtn" class="sel-btn sel-btn-ghost" style="font-size:.75rem;">
+                            + Add Variant
+                        </button>
+                    </div>
+
+                    <div style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 28px;
+                                    gap:.5rem;padding:.5rem .75rem;background:#f3f4f6;
+                                    font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">
+                            <span id="sizeHeader">Size</span>
+                            <span>Color (optional)</span>
+                            <span>Stock</span>
+                            <span>+/- Price</span>
+                            <span></span>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Price (₱)</label>
-                            <input type="number" class="form-control" name="price" step="0.01" min="0" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Stock</label>
-                            <input type="number" class="form-control" name="stock" min="0" required>
+                        <div id="variantRows" style="padding:.5rem .75rem;display:flex;flex-direction:column;gap:.4rem;">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Product Images</label>
-                        <input type="file" class="form-control" name="images" multiple accept="image/*">
-                        <div class="form-text">You can select multiple images. First image will be the primary.</div>
-                    </div>
-                    <button type="submit" class="btn btn-success w-100">Add Product</button>
-                </form>
-            </div>
-            <div class="card-footer">
-                <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
-            </div>
+                    <p style="font-size:.75rem;color:#9ca3af;margin-top:.4rem;">
+                        Stock is tracked per variant. Leave +/- Price at 0 to use the base price.
+                    </p>
+                </div>
+
+                {# Fallback stock for non-variant categories #}
+                <div id="simpleStock" style="margin-bottom:1.25rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                  letter-spacing:.5px;display:block;margin-bottom:.4rem;">Stock *</label>
+                    <input type="number" name="stock" min="0" id="simpleStockInput"
+                           style="width:160px;padding:.55rem .85rem;border:1px solid #e5e7eb;border-radius:8px;
+                                  font-size:.9rem;color:#111827;outline:none;">
+                </div>
+
+                <button type="submit" class="sel-btn sel-btn-gold" style="width:100%;justify-content:center;padding:.7rem;">
+                    Add Product
+                </button>
+            </form>
         </div>
     </div>
 </div>
+
+<script>
+const VARIANT_CATEGORIES = {
+    'Suits & Blazers':        { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
+    'Casual Shirts & Pants':  { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
+    'Outerwear & Jackets':    { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
+    'Activewear & Fitness Gear': { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
+    'Shoes & Accessories':    { type: 'shoes',   sizes: ['38','39','40','41','42','43','44','45'] },
+    'Grooming Products':      { type: 'none' },
+}
+
+const categorySelect  = document.getElementById('categorySelect')
+const variantSection  = document.getElementById('variantSection')
+const simpleStock     = document.getElementById('simpleStock')
+const simpleStockInput= document.getElementById('simpleStockInput')
+const variantRows     = document.getElementById('variantRows')
+const sizeHeader      = document.getElementById('sizeHeader')
+const addVariantBtn   = document.getElementById('addVariantBtn')
+
+let currentSizes = []
+
+function buildVariantRow(size = '', color = '', stock = 0, priceAdj = 0) {
+    const row = document.createElement('div')
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 80px 80px 28px;gap:.5rem;align-items:center;'
+    row.innerHTML = `
+        <select name="variant_size[]"
+                style="padding:.4rem .6rem;border:1px solid #e5e7eb;border-radius:6px;font-size:.83rem;outline:none;">
+            <option value="">— Size —</option>
+            ${currentSizes.map(s => `<option value="${s}" ${s===size?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <input type="text" name="variant_color[]" value="${color}" placeholder="e.g. Black"
+               style="padding:.4rem .6rem;border:1px solid #e5e7eb;border-radius:6px;font-size:.83rem;outline:none;">
+        <input type="number" name="variant_stock[]" value="${stock}" min="0" required
+               style="padding:.4rem .6rem;border:1px solid #e5e7eb;border-radius:6px;font-size:.83rem;outline:none;">
+        <input type="number" name="variant_price_adj[]" value="${priceAdj}" step="0.01"
+               style="padding:.4rem .6rem;border:1px solid #e5e7eb;border-radius:6px;font-size:.83rem;outline:none;">
+        <button type="button" onclick="this.closest('div').remove()"
+                style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;
+                       width:26px;height:26px;cursor:pointer;font-size:.9rem;display:flex;
+                       align-items:center;justify-content:center;">×</button>
+    `
+    return row
+}
+
+function onCategoryChange() {
+    const cat  = categorySelect.value
+    const info = VARIANT_CATEGORIES[cat]
+
+    if (!info || info.type === 'none') {
+        variantSection.style.display = 'none'
+        simpleStock.style.display    = 'block'
+        simpleStockInput.required    = true
+        variantRows.innerHTML        = ''
+        return
+    }
+
+    currentSizes = info.sizes
+    sizeHeader.textContent = info.type === 'shoes' ? 'Shoe Size (EU)' : 'Size'
+
+    variantSection.style.display  = 'block'
+    simpleStock.style.display     = 'none'
+    simpleStockInput.required     = false
+    simpleStockInput.value        = ''
+
+    // Pre-populate one row per size if empty
+    if (variantRows.children.length === 0) {
+        currentSizes.forEach(s => variantRows.appendChild(buildVariantRow(s)))
+    } else {
+        // Refresh size options in existing rows
+        variantRows.querySelectorAll('select[name="variant_size[]"]').forEach(sel => {
+            const cur = sel.value
+            sel.innerHTML = `<option value="">— Size —</option>` +
+                currentSizes.map(s => `<option value="${s}" ${s===cur?'selected':''}>${s}</option>`).join('')
+        })
+    }
+}
+
+categorySelect.addEventListener('change', onCategoryChange)
+addVariantBtn.addEventListener('click', () => {
+    variantRows.appendChild(buildVariantRow())
+})
+</script>
 {% endblock %}

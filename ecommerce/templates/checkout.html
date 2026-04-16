@@ -62,10 +62,24 @@
                         </thead>
                         <tbody>
                             {% for item in cart_items %}
+                            {% set avail = item.variant.stock if item.variant else item.product.stock %}
                             <tr>
                                 <td>
                                     <div class="co-product-name">{{ item.product.name }}</div>
-                                    {% if item.product.category %}
+                                    {% if item.variant %}
+                                    <div style="display:flex;gap:.3rem;margin-top:.25rem;flex-wrap:wrap;">
+                                        <span style="background:#f3f4f6;color:#374151;font-size:.7rem;
+                                                     font-weight:600;padding:.15rem .5rem;border-radius:999px;">
+                                            {{ item.variant.size }}
+                                        </span>
+                                        {% if item.variant.color %}
+                                        <span style="background:#f3f4f6;color:#374151;font-size:.7rem;
+                                                     font-weight:600;padding:.15rem .5rem;border-radius:999px;">
+                                            {{ item.variant.color }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% elif item.product.category %}
                                     <div class="co-product-cat">{{ item.product.category }}</div>
                                     {% endif %}
                                 </td>
@@ -75,21 +89,21 @@
                                                 onclick="coAdjust(this, -1)">−</button>
                                         <input type="number"
                                                class="co-qty-input"
-                                               name="qty_{{ item.product.id }}"
+                                               name="qty_{{ item.cart_key }}"
                                                value="{{ item.quantity }}"
                                                min="1"
-                                               max="{{ item.product.stock }}"
-                                               data-price="{{ item.product.price }}"
+                                               max="{{ avail }}"
+                                               data-price="{{ item.price }}"
                                                onchange="coRecalc()">
                                         <button type="button" class="co-qty-btn"
                                                 onclick="coAdjust(this, 1)">+</button>
                                     </div>
                                 </td>
                                 <td class="text-end co-unit-price">
-                                    ₱{{ "%.2f"|format(item.product.price) }}
+                                    ₱{{ "%.2f"|format(item.price) }}
                                 </td>
                                 <td class="text-end co-subtotal"
-                                    data-price="{{ item.product.price }}">
+                                    data-price="{{ item.price }}">
                                     ₱{{ "%.2f"|format(item.subtotal) }}
                                 </td>
                             </tr>
@@ -153,9 +167,13 @@
             <div class="co-card-body">
                 {% for item in cart_items %}
                 <div class="co-summary-item">
-                    <span class="co-summary-item-name">{{ item.product.name }}</span>
+                    <span class="co-summary-item-name">
+                        {{ item.product.name }}
+                        {% if item.variant %} &middot; {{ item.variant.size }}{% if item.variant.color %}/{{ item.variant.color }}{% endif %}{% endif %}
+                        &times; {{ item.quantity }}
+                    </span>
                     <span class="co-summary-item-price co-item-subtotal"
-                          data-price="{{ item.product.price }}">
+                          data-price="{{ item.price }}">
                         ₱{{ "%.2f"|format(item.subtotal) }}
                     </span>
                 </div>

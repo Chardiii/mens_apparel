@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Chat with {{ partner.username }} — Mode S7vn{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+
+    {# Header #}
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;">
+        <a href="{{ url_for('messages.inbox') }}"
+           style="color:#6b7280;text-decoration:none;font-size:1.2rem;">←</a>
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#c8a96e,#e8c97e);
+                    display:flex;align-items:center;justify-content:center;
+                    font-weight:800;color:#111827;font-size:.95rem;flex-shrink:0;">
+            {{ partner.username[0].upper() }}
+        </div>
+        <div>
+            <div style="font-weight:700;color:#111827;">{{ partner.username }}</div>
+            <div style="font-size:.75rem;color:#9ca3af;">{{ partner.role|upper }}</div>
+        </div>
+    </div>
+
+    {# Context card (product or order) #}
+    {% if context_product %}
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;
+                padding:.75rem 1rem;margin-bottom:1rem;font-size:.83rem;color:#92400e;
+                display:flex;align-items:center;gap:.5rem;">
+        📦 Regarding: <strong>{{ context_product.name }}</strong>
+        <a href="{{ url_for('products.view_product', product_id=context_product.id) }}"
+           style="color:#b45309;margin-left:.25rem;">View →</a>
+    </div>
+    {% endif %}
+    {% if context_order %}
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;
+                padding:.75rem 1rem;margin-bottom:1rem;font-size:.83rem;color:#1e40af;
+                display:flex;align-items:center;gap:.5rem;">
+        🧾 Order: <strong>{{ context_order.order_number }}</strong>
+        <a href="{{ url_for('orders.order_detail', order_id=context_order.id) }}"
+           style="color:#1d4ed8;margin-left:.25rem;">View →</a>
+    </div>
+    {% endif %}
+
+    {# Message thread #}
+    <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                padding:1.25rem;min-height:320px;max-height:520px;overflow-y:auto;
+                display:flex;flex-direction:column;gap:.75rem;margin-bottom:1rem;">
+        {% for m in msgs %}
+        {% set is_mine = m.sender_id == current_user.id %}
+        <div style="display:flex;flex-direction:column;
+                    align-items:{{ 'flex-end' if is_mine else 'flex-start' }};">
+            <div style="max-width:75%;background:{{ '#111827' if is_mine else '#f3f4f6' }};
+                        color:{{ '#f9fafb' if is_mine else '#111827' }};
+                        padding:.6rem .9rem;border-radius:{{ '12px 12px 4px 12px' if is_mine else '12px 12px 12px 4px' }};
+                        font-size:.85rem;line-height:1.5;word-break:break-word;">
+                {{ m.body }}
+            </div>
+            <span style="font-size:.68rem;color:#9ca3af;margin-top:.2rem;">
+                {{ m.created_at.strftime('%b %d, %H:%M') }}
+            </span>
+        </div>
+        {% else %}
+        <div style="text-align:center;color:#9ca3af;font-size:.85rem;margin:auto;">
+            No messages yet. Say hello!
+        </div>
+        {% endfor %}
+        <div id="bottom"></div>
+    </div>
+
+    {# Compose #}
+    <form method="POST"
+          action="{{ url_for('messages.thread', partner_id=partner.id, product_id=product_id, order_id=order_id) }}"
+          style="display:flex;gap:.6rem;align-items:flex-end;">
+        <textarea name="body" rows="2" maxlength="2000"
+                  placeholder="Type a message…"
+                  style="flex:1;padding:.65rem .9rem;border:1px solid #e5e7eb;border-radius:10px;
+                         font-size:.85rem;resize:none;outline:none;font-family:inherit;"
+                  required></textarea>
+        <button type="submit"
+                style="background:#111827;color:#fff;border:none;border-radius:10px;
+                       padding:.65rem 1.1rem;font-size:.85rem;font-weight:600;cursor:pointer;
+                       white-space:nowrap;">
+            Send
+        </button>
+    </form>
+</div>
+
+<script>
+    // Auto-scroll to bottom on load
+    const bottom = document.getElementById('bottom');
+    if (bottom) bottom.scrollIntoView();
+</script>
+{% endblock %}

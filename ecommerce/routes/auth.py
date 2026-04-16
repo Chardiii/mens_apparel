@@ -268,6 +268,9 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
+            if user.is_banned:
+                flash('Your account has been permanently banned. Contact support if you believe this is an error.', 'danger')
+                return redirect(url_for('auth.login'))
             if not user.email_verified:
                 flash('Please verify your email address first. Check your inbox.', 'warning')
                 return redirect(url_for('auth.login'))

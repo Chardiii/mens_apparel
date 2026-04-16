@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Seller — Mode S7vn{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: #f4f5f7;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Sidebar ── */
+        .sel-sidebar {
+            width: 256px;
+            min-height: 100vh;
+            background: #111827;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .sel-logo {
+            padding: 1.5rem 1.25rem 1.25rem;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .sel-logo-inner { display: flex; align-items: center; gap: .75rem; }
+        .sel-logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #c8a96e, #e8c97e);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .sel-logo-name {
+            font-size: 1rem; font-weight: 800;
+            letter-spacing: 2px; text-transform: uppercase; color: #c8a96e;
+        }
+        .sel-logo-sub {
+            font-size: .68rem; color: #6b7280;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        .sel-nav {
+            flex: 1; padding: 1rem .75rem;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .sel-nav-section {
+            font-size: .62rem; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: #4b5563; padding: .85rem .5rem .3rem;
+        }
+        .sel-nav-link {
+            display: flex; align-items: center; gap: .65rem;
+            padding: .55rem .75rem; border-radius: 8px;
+            font-size: .84rem; font-weight: 500;
+            color: #9ca3af; text-decoration: none;
+            transition: background .15s, color .15s;
+            border-left: 3px solid transparent;
+        }
+        .sel-nav-link:hover { background: rgba(255,255,255,.05); color: #f9fafb; }
+        .sel-nav-link.active {
+            background: #1f2937; color: #f9fafb;
+            border-left-color: #c8a96e; font-weight: 600;
+        }
+        .sel-nav-icon { width: 18px; text-align: center; font-size: .9rem; flex-shrink: 0; }
+
+        .sel-sidebar-footer {
+            padding: .75rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .sel-nav-link.logout { color: #f87171; }
+        .sel-nav-link.logout:hover { background: rgba(248,113,113,.08); color: #f87171; }
+
+        /* ── Main wrapper ── */
+        .sel-main-wrap {
+            margin-left: 256px; flex: 1;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+
+        /* ── Topbar ── */
+        .sel-topbar {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 0 2rem; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .sel-topbar-title { font-size: 1.1rem; font-weight: 700; color: #111827; }
+        .sel-topbar-right { display: flex; align-items: center; gap: 1rem; }
+        .sel-admin-pill {
+            display: flex; align-items: center; gap: .6rem;
+            background: #f9fafb; border: 1px solid #e5e7eb;
+            border-radius: 999px; padding: .35rem .85rem .35rem .5rem;
+            font-size: .82rem; font-weight: 600; color: #374151;
+            text-decoration: none;
+        }
+        .sel-admin-avatar {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #c8a96e, #e8c97e);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .75rem; font-weight: 800; color: #111827;
+        }
+
+        /* ── Content ── */
+        .sel-content { flex: 1; padding: 2rem; background: #f4f5f7; }
+
+        /* ── KPI grid ── */
+        .sel-kpi-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem; margin-bottom: 1.5rem;
+        }
+        @media (max-width: 1200px) { .sel-kpi-grid { grid-template-columns: repeat(2,1fr); } }
+        @media (max-width: 640px)  { .sel-kpi-grid { grid-template-columns: 1fr; } }
+
+        .sel-kpi {
+            background: #fff; border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
+        }
+        .sel-kpi-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: .75rem;
+        }
+        .sel-kpi-label {
+            font-size: .75rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .6px; color: #6b7280;
+        }
+        .sel-kpi-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .kpi-green  { background: #d1fae5; }
+        .kpi-blue   { background: #dbeafe; }
+        .kpi-amber  { background: #fef3c7; }
+        .kpi-purple { background: #ede9fe; }
+        .kpi-teal   { background: #ccfbf1; }
+        .kpi-red    { background: #fee2e2; }
+
+        .sel-kpi-value {
+            font-size: 1.75rem; font-weight: 800;
+            color: #111827; line-height: 1; margin-bottom: .3rem;
+        }
+        .sel-kpi-sub { font-size: .75rem; color: #9ca3af; }
+        .sel-kpi-sub strong { color: #374151; }
+        .sel-kpi-trend {
+            font-size: .72rem; font-weight: 700;
+            padding: .15rem .5rem; border-radius: 999px;
+            display: inline-block; margin-top: .35rem;
+        }
+        .trend-up   { background: #d1fae5; color: #065f46; }
+        .trend-down { background: #fee2e2; color: #991b1b; }
+        .trend-flat { background: #f3f4f6; color: #6b7280; }
+
+        /* ── Cards ── */
+        .sel-card {
+            background: #fff; border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
+            overflow: hidden; margin-bottom: 1.25rem;
+        }
+        .sel-card-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .sel-card-title { font-size: .9rem; font-weight: 700; color: #111827; }
+        .sel-card-body  { padding: 1.5rem; }
+
+        /* ── Alerts ── */
+        .sel-alert-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .sel-alert {
+            border-radius: 10px; padding: 1rem 1.25rem;
+            display: flex; align-items: flex-start; gap: .75rem;
+            text-decoration: none; transition: opacity .15s;
+        }
+        .sel-alert:hover { opacity: .85; }
+        .sel-alert-amber { background: #fffbeb; border: 1px solid #fde68a; }
+        .sel-alert-red   { background: #fff1f2; border: 1px solid #fecaca; }
+        .sel-alert-blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+        .sel-alert-icon  { font-size: 1.4rem; flex-shrink: 0; margin-top: .1rem; }
+        .sel-alert-title { font-weight: 700; font-size: .85rem; }
+        .sel-alert-sub   { font-size: .75rem; margin-top: .15rem; }
+        .sel-alert-amber .sel-alert-title { color: #92400e; }
+        .sel-alert-amber .sel-alert-sub   { color: #b45309; }
+        .sel-alert-red   .sel-alert-title { color: #991b1b; }
+        .sel-alert-red   .sel-alert-sub   { color: #dc2626; }
+        .sel-alert-blue  .sel-alert-title { color: #1e40af; }
+        .sel-alert-blue  .sel-alert-sub   { color: #3b82f6; }
+
+        /* ── Tables ── */
+        .sel-table { width: 100%; border-collapse: collapse; }
+        .sel-table thead th {
+            font-size: .7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .6px;
+            color: #6b7280; padding: .75rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            background: #fafafa; white-space: nowrap;
+        }
+        .sel-table tbody td {
+            padding: .85rem 1.5rem;
+            border-bottom: 1px solid #f9fafb;
+            font-size: .85rem; color: #374151; vertical-align: middle;
+        }
+        .sel-table tbody tr:last-child td { border-bottom: none; }
+        .sel-table tbody tr:hover td { background: #fafbff; }
+
+        /* ── Badges ── */
+        .sel-badge {
+            font-size: .68rem; font-weight: 700;
+            padding: .25rem .65rem; border-radius: 999px;
+            letter-spacing: .3px; display: inline-block; white-space: nowrap;
+        }
+        .sel-badge-pending   { background: #fef3c7; color: #92400e; }
+        .sel-badge-verified  { background: #dbeafe; color: #1e40af; }
+        .sel-badge-assigned  { background: #cffafe; color: #155e75; }
+        .sel-badge-shipped   { background: #f3f4f6; color: #374151; }
+        .sel-badge-delivered { background: #d1fae5; color: #065f46; }
+        .sel-badge-cancelled { background: #fee2e2; color: #991b1b; }
+        .sel-badge-active    { background: #d1fae5; color: #065f46; }
+        .sel-badge-inactive  { background: #fee2e2; color: #991b1b; }
+        .sel-badge-low       { background: #fef3c7; color: #92400e; }
+        .sel-badge-out       { background: #fee2e2; color: #991b1b; }
+
+        /* ── Buttons ── */
+        .sel-btn {
+            font-size: .78rem; font-weight: 600;
+            padding: .35rem .85rem; border-radius: 6px;
+            border: none; cursor: pointer; text-decoration: none;
+            display: inline-flex; align-items: center; gap: .35rem;
+            transition: opacity .15s, transform .1s; letter-spacing: .2px;
+        }
+        .sel-btn:hover { opacity: .85; transform: translateY(-1px); }
+        .sel-btn-primary { background: #111827; color: #fff; }
+        .sel-btn-ghost   { background: #f3f4f6; color: #374151; }
+        .sel-btn-danger  { background: #fee2e2; color: #991b1b; }
+        .sel-btn-success { background: #d1fae5; color: #065f46; }
+        .sel-btn-warning { background: #fef3c7; color: #92400e; }
+        .sel-btn-gold    { background: linear-gradient(135deg,#c8a96e,#e8c97e); color: #111827; }
+
+        /* ── Toggle switch ── */
+        .sel-toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+        .sel-toggle input { opacity: 0; width: 0; height: 0; }
+        .sel-toggle-slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #d1d5db; border-radius: 999px;
+            transition: .2s;
+        }
+        .sel-toggle-slider:before {
+            content: ''; position: absolute;
+            width: 14px; height: 14px; left: 3px; bottom: 3px;
+            background: #fff; border-radius: 50%; transition: .2s;
+        }
+        .sel-toggle input:checked + .sel-toggle-slider { background: #059669; }
+        .sel-toggle input:checked + .sel-toggle-slider:before { transform: translateX(16px); }
+
+        /* ── Page header ── */
+        .sel-page-header {
+            display: flex; align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem;
+        }
+        .sel-page-title { font-size: 1.35rem; font-weight: 800; color: #111827; margin: 0; }
+        .sel-page-sub   { font-size: .82rem; color: #6b7280; margin-top: .2rem; }
+
+        /* ── Pagination ── */
+        .sel-pagination {
+            display: flex; gap: .3rem;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #f3f4f6;
+            justify-content: flex-end;
+        }
+        .sel-page-btn {
+            width: 32px; height: 32px; border-radius: 6px;
+            border: 1px solid #e5e7eb; background: #fff;
+            font-size: .78rem; font-weight: 600; color: #6b7280;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: background .15s;
+        }
+        .sel-page-btn:hover { background: #f3f4f6; color: #111827; }
+        .sel-page-btn.active { background: #111827; color: #fff; border-color: #111827; }
+
+        /* ── Toast ── */
+        .toast-container { z-index: 9999; }
+        .toast { min-width: 280px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+        .toast-success { background: #065f46; color: #fff; }
+        .toast-danger  { background: #991b1b; color: #fff; }
+        .toast-warning { background: #92400e; color: #fff; }
+        .toast-info    { background: #1e40af; color: #fff; }
+
+        @media (max-width: 768px) {
+            .sel-sidebar { transform: translateX(-100%); }
+            .sel-main-wrap { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    {# ── Sidebar ── #}
+    <aside class="sel-sidebar">
+        <div class="sel-logo">
+            <div class="sel-logo-inner">
+                <div class="sel-logo-icon">🏪</div>
+                <div>
+                    <div class="sel-logo-name">Mode S7vn</div>
+                    <div class="sel-logo-sub">Seller Portal</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sel-nav">
+            <div class="sel-nav-section">Overview</div>
+            <a href="{{ url_for('products.seller_dashboard') }}"
+               class="sel-nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                <span class="sel-nav-icon">📊</span> Dashboard
+            </a>
+
+            <div class="sel-nav-section">Store</div>
+            <a href="{{ url_for('products.seller_orders') }}"
+               class="sel-nav-link {% if active_page == 'orders' %}active{% endif %}">
+                <span class="sel-nav-icon">📋</span> Orders
+            </a>
+            <a href="{{ url_for('products.seller_dashboard') }}#inventory"
+               class="sel-nav-link {% if active_page == 'inventory' %}active{% endif %}">
+                <span class="sel-nav-icon">📦</span> Inventory
+            </a>
+            <a href="{{ url_for('products.add_product') }}"
+               class="sel-nav-link {% if active_page == 'add_product' %}active{% endif %}">
+                <span class="sel-nav-icon">➕</span> Add Product
+            </a>
+
+            <div class="sel-nav-section">Account</div>
+            <a href="{{ url_for('messages.inbox') }}"
+               class="sel-nav-link {% if active_page == 'messages' %}active{% endif %}">
+                <span class="sel-nav-icon">💬</span> Messages
+                {% set unread = current_user.received_messages.filter_by(is_read=False).count() %}
+                {% if unread %}
+                <span style="margin-left:auto;background:#f87171;color:#fff;font-size:.6rem;
+                             font-weight:700;padding:.1rem .45rem;border-radius:999px;">{{ unread }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('auth.profile') }}"
+               class="sel-nav-link {% if active_page == 'profile' %}active{% endif %}">
+                <span class="sel-nav-icon">👤</span> Shop Profile
+            </a>
+            <a href="{{ url_for('main.index') }}" class="sel-nav-link">
+                <span class="sel-nav-icon">🌐</span> View Store
+            </a>
+        </nav>
+
+        <div class="sel-sidebar-footer">
+            <a href="{{ url_for('auth.logout') }}" class="sel-nav-link logout">
+                <span class="sel-nav-icon">🚪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    {# ── Main wrapper ── #}
+    <div class="sel-main-wrap">
+
+        <header class="sel-topbar">
+            <span class="sel-topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+            <div class="sel-topbar-right">
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% for category, message in messages %}
+                        <div class="toast align-items-center border-0 toast-{{ category }} show"
+                             role="alert" data-bs-autohide="true" data-bs-delay="4000">
+                            <div class="d-flex">
+                                <div class="toast-body">{{ message }}</div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                                        data-bs-dismiss="toast"></button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endwith %}
+                </div>
+                <a href="{{ url_for('auth.profile') }}" class="sel-admin-pill">
+                    <div class="sel-admin-avatar">{{ current_user.username[0].upper() }}</div>
+                    {{ current_user.shop_name or current_user.username }}
+                </a>
+            </div>
+        </header>
+
+        <main class="sel-content">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.toast').forEach(el => new bootstrap.Toast(el, {delay:4000}).show())
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

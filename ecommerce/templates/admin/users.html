@@ -1,131 +1,443 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'users' %}
 
-{% block title %}Manage Users - Mode S7vn{% endblock %}
+{% block title %}Users — Mode S7vn Admin{% endblock %}
+{% block page_title %}User & Identity Management{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>Manage Users</h2>
+<div class="adm-page-header">
+    <div>
+        <h1 class="adm-page-title">User & Identity Management</h1>
+        <p class="adm-page-sub">Manage accounts, verify KYC documents, and control access.</p>
     </div>
 </div>
 
-{# Pending approval banner #}
-{% set pending = users.items | selectattr('is_active', 'equalto', false) | list %}
-{% if pending %}
-<div class="alert alert-warning">
-    <strong>{{ pending|length }} account(s) pending approval.</strong> Review documents below and activate.
+{# ── Filter tabs ── #}
+<div class="adm-tabs">
+    <a href="{{ url_for('admin.manage_users') }}"
+       class="adm-tab {{ 'adm-tab-active' if not filter_role and not filter_status }}">
+        All <span class="adm-tab-count">{{ counts.all }}</span>
+    </a>
+    <a href="{{ url_for('admin.manage_users', status='pending') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_status == 'pending' }}">
+        ⏳ Pending <span class="adm-tab-count adm-tab-count-warn">{{ counts.pending }}</span>
+    </a>
+    <a href="{{ url_for('admin.manage_users', status='active') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_status == 'active' }}">
+        ✅ Active <span class="adm-tab-count">{{ counts.active }}</span>
+    </a>
+    <a href="{{ url_for('admin.manage_users', status='banned') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_status == 'banned' }}">
+        🚫 Banned <span class="adm-tab-count adm-tab-count-danger">{{ counts.banned }}</span>
+    </a>
+    <div class="adm-tab-divider"></div>
+    <a href="{{ url_for('admin.manage_users', role='buyer') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_role == 'buyer' }}">
+        🛍️ Buyers <span class="adm-tab-count">{{ counts.buyer }}</span>
+    </a>
+    <a href="{{ url_for('admin.manage_users', role='seller') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_role == 'seller' }}">
+        🏪 Sellers <span class="adm-tab-count">{{ counts.seller }}</span>
+    </a>
+    <a href="{{ url_for('admin.manage_users', role='rider') }}"
+       class="adm-tab {{ 'adm-tab-active' if filter_role == 'rider' }}">
+        🏍️ Riders <span class="adm-tab-count">{{ counts.rider }}</span>
+    </a>
+</div>
+
+{# ── Pending alert ── #}
+{% if counts.pending and not filter_status %}
+<div class="adm-alert-banner adm-alert-warn">
+    <span>⏳</span>
+    <span><strong>{{ counts.pending }} account{{ 's' if counts.pending != 1 }}</strong> awaiting KYC review and approval.</span>
+    <a href="{{ url_for('admin.manage_users', status='pending') }}" class="adm-alert-link">Review now →</a>
 </div>
 {% endif %}
 
-<div class="table-responsive">
-    <table class="table table-striped align-middle">
+<div class="adm-card">
+    <table class="adm-table">
         <thead>
             <tr>
                 <th>User</th>
                 <th>Role</th>
-                <th>Documents</th>
-                <th>Status</th>
+                <th>KYC Documents</th>
+                <th>Account Status</th>
+                <th>Joined</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for user in users.items %}
-            <tr class="{{ 'table-warning' if not user.is_active else '' }}">
+            <tr class="{{ 'adm-row-banned' if user.is_banned else ('adm-row-pending' if not user.is_active else '') }}">
+
+                {# User info #}
                 <td>
-                    <div class="fw-bold">{{ user.username }}</div>
-                    <small class="text-muted">{{ user.email }}</small><br>
-                    <small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                    <div style="display:flex;align-items:center;gap:.65rem;">
+                        <div class="adm-user-avatar adm-avatar-{{ user.role }}">
+                            {{ (user.first_name or user.username)[0].upper() }}
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:#1a1a2e;font-size:.88rem;">{{ user.username }}</div>
+                            <div style="font-size:.75rem;color:#888;">{{ user.email }}</div>
+                            {% if user.first_name or user.last_name %}
+                            <div style="font-size:.72rem;color:#aaa;">{{ user.first_name or '' }} {{ user.last_name or '' }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
+
+                {# Role #}
                 <td>
-                    <span class="badge bg-{{
-                        'primary' if user.role == 'buyer' else
-                        'success' if user.role == 'seller' else
-                        'warning text-dark' if user.role == 'rider' else
-                        'danger'
-                    }}">{{ user.role.upper() }}</span>
+                    <span class="adm-badge adm-badge-{{ user.role }}">{{ user.role.upper() }}</span>
+                    {% if user.shop_name %}
+                    <div style="font-size:.72rem;color:#888;margin-top:.2rem;">{{ user.shop_name }}</div>
+                    {% endif %}
+                    {% if user.plate_number %}
+                    <div style="font-size:.72rem;color:#888;margin-top:.2rem;">{{ user.plate_number }}</div>
+                    {% endif %}
                 </td>
+
+                {# KYC Documents #}
                 <td>
-                    <div class="d-flex flex-column gap-1">
+                    <div style="display:flex;flex-direction:column;gap:.3rem;">
                         {% if user.valid_id %}
-                        <a href="{{ url_for('static', filename='uploads/' ~ user.valid_id) }}"
-                           target="_blank" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2" style="font-size:.75rem;">
-                            🪪 Valid ID
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.valid_id) }}" target="_blank"
+                           class="adm-doc-link">
+                            <span>🪪</span> Valid ID
+                            <span class="adm-doc-verified">✓</span>
                         </a>
                         {% endif %}
                         {% if user.business_permit %}
-                        <a href="{{ url_for('static', filename='uploads/' ~ user.business_permit) }}"
-                           target="_blank" class="btn btn-xs btn-outline-success btn-sm py-0 px-2" style="font-size:.75rem;">
-                            📄 Business Permit
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.business_permit) }}" target="_blank"
+                           class="adm-doc-link">
+                            <span>📄</span> Business Permit
+                            <span class="adm-doc-verified">✓</span>
                         </a>
                         {% endif %}
                         {% if user.drivers_license %}
-                        <a href="{{ url_for('static', filename='uploads/' ~ user.drivers_license) }}"
-                           target="_blank" class="btn btn-xs btn-outline-info btn-sm py-0 px-2" style="font-size:.75rem;">
-                            🪪 Driver's License
+                        <a href="{{ url_for('static', filename='uploads/' ~ user.drivers_license) }}" target="_blank"
+                           class="adm-doc-link">
+                            <span>🪪</span> Driver's License
+                            <span class="adm-doc-verified">✓</span>
                         </a>
                         {% endif %}
-                        {% if user.plate_number %}
-                        <small class="text-muted">Plate: {{ user.plate_number }}</small>
-                        {% endif %}
-                        {% if user.shop_name %}
-                        <small class="text-muted">Shop: {{ user.shop_name }}</small>
-                        {% endif %}
                         {% if not user.valid_id and not user.business_permit and not user.drivers_license %}
-                        <span class="text-muted small">—</span>
+                        <span style="color:#ccc;font-size:.75rem;">No documents</span>
                         {% endif %}
                     </div>
                 </td>
+
+                {# Status #}
                 <td>
-                    {% if user.is_active %}
-                    <span class="badge bg-success">Active</span>
+                    {% if user.is_banned %}
+                    <span class="adm-badge adm-badge-cancelled">🚫 Banned</span>
+                    {% if user.ban_reason %}
+                    <div style="font-size:.7rem;color:#991b1b;margin-top:.25rem;max-width:140px;">{{ user.ban_reason }}</div>
+                    {% endif %}
+                    {% elif user.is_active %}
+                    <span class="adm-badge adm-badge-active">✅ Active</span>
+                    {% if user.email_verified %}
+                    <div style="font-size:.7rem;color:#065f46;margin-top:.2rem;">Email verified</div>
+                    {% endif %}
                     {% else %}
-                    <span class="badge bg-warning text-dark">Pending</span>
+                    <span class="adm-badge adm-badge-pending">⏳ Pending</span>
+                    {% if not user.email_verified %}
+                    <div style="font-size:.7rem;color:#92400e;margin-top:.2rem;">Email not verified</div>
+                    {% endif %}
                     {% endif %}
                 </td>
+
+                {# Joined #}
+                <td style="color:#888;font-size:.78rem;white-space:nowrap;">
+                    {{ user.created_at.strftime('%b %d, %Y') }}
+                </td>
+
+                {# Actions dropdown #}
                 <td>
-                    <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
-                        {% if not user.is_active %}
-                        <input type="hidden" name="is_active" value="on">
-                        <input type="hidden" name="is_verified" value="on">
-                        <button type="submit" class="btn btn-sm btn-success"
-                            onclick="return confirm('Approve {{ user.username }}?')">
-                            ✓ Approve
-                        </button>
-                        {% else %}
-                        <input type="hidden" name="is_active" value="">
-                        <input type="hidden" name="is_verified" value="on">
-                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                            onclick="return confirm('Deactivate {{ user.username }}?')">
-                            Deactivate
-                        </button>
+                    {% if not user.is_admin() %}
+                    <div class="adm-action-group">
+
+                        {# Approve (pending only) #}
+                        {% if not user.is_active and not user.is_banned %}
+                        <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                            <input type="hidden" name="is_active" value="on">
+                            <input type="hidden" name="is_verified" value="on">
+                            <button type="submit" class="adm-btn adm-btn-approve"
+                                onclick="return confirm('Approve {{ user.username }}?')">
+                                ✓ Approve
+                            </button>
+                        </form>
                         {% endif %}
-                    </form>
+
+                        {# Suspend (active only) #}
+                        {% if user.is_active and not user.is_banned %}
+                        <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                            <input type="hidden" name="is_active" value="">
+                            <input type="hidden" name="is_verified" value="on">
+                            <button type="submit" class="adm-btn adm-btn-warning"
+                                onclick="return confirm('Suspend {{ user.username }}? They will not be able to log in.')">
+                                ⏸ Suspend
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {# Unban #}
+                        {% if user.is_banned %}
+                        <form method="POST" action="{{ url_for('admin.unban_user', user_id=user.id) }}">
+                            <button type="submit" class="adm-btn adm-btn-approve"
+                                onclick="return confirm('Unban {{ user.username }}?')">
+                                ↩ Unban
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {# More actions dropdown #}
+                        <div class="adm-dropdown">
+                            <button class="adm-btn adm-btn-ghost adm-dropdown-toggle">⋯</button>
+                            <div class="adm-dropdown-menu">
+
+                                {# Ban #}
+                                {% if not user.is_banned %}
+                                <button class="adm-dropdown-item adm-dropdown-danger"
+                                        onclick="openBanModal({{ user.id }}, '{{ user.username }}')">
+                                    🚫 Ban User
+                                </button>
+                                {% endif %}
+
+                                {# Change Role #}
+                                <div class="adm-dropdown-label">Change Role To</div>
+                                {% for role_val, role_label in [('buyer','🛍️ Buyer'),('seller','🏪 Seller'),('rider','🏍️ Rider')] %}
+                                {% if user.role != role_val %}
+                                <form method="POST" action="{{ url_for('admin.change_role', user_id=user.id) }}">
+                                    <input type="hidden" name="new_role" value="{{ role_val }}">
+                                    <button type="submit" class="adm-dropdown-item"
+                                        onclick="return confirm('Change {{ user.username }} to {{ role_label }}?')">
+                                        {{ role_label }}
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% endfor %}
+
+                                <div class="adm-dropdown-divider"></div>
+
+                                {# Reset Password #}
+                                <form method="POST" action="{{ url_for('admin.admin_reset_password', user_id=user.id) }}">
+                                    <button type="submit" class="adm-dropdown-item"
+                                        onclick="return confirm('Send password reset email to {{ user.username }}?')">
+                                        🔑 Reset Password
+                                    </button>
+                                </form>
+
+                            </div>
+                        </div>
+
+                    </div>
+                    {% else %}
+                    <span style="color:#ccc;font-size:.75rem;">Admin</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}
-            <tr>
-                <td colspan="5" class="text-center text-muted py-4">No users found.</td>
-            </tr>
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:2.5rem;">No users found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
-</div>
 
-{% if users.pages > 1 %}
-<nav>
-    <ul class="pagination">
+    {% if users.pages > 1 %}
+    <div class="adm-pagination">
         {% for p in users.iter_pages() %}
             {% if p %}
-            <li class="page-item {% if p == users.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.manage_users', page=p) }}">{{ p }}</a>
-            </li>
+            <a href="{{ url_for('admin.manage_users', page=p, role=filter_role, status=filter_status) }}"
+               class="adm-page-btn {{ 'active' if p == users.page }}">{{ p }}</a>
             {% else %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
+            <span class="adm-page-btn">…</span>
             {% endif %}
         {% endfor %}
-    </ul>
-</nav>
-{% endif %}
+    </div>
+    {% endif %}
+</div>
 
-<a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary mt-2">← Back to Dashboard</a>
+{# Ban Modal #}
+<div id="banModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:2rem;width:420px;max-width:90vw;box-shadow:0 20px 40px rgba(0,0,0,.2);">
+        <h5 style="font-weight:800;color:#1a1a2e;margin-bottom:.5rem;">🚫 Ban User</h5>
+        <p style="font-size:.85rem;color:#666;margin-bottom:1.25rem;">
+            Banning <strong id="banUsername"></strong> will immediately revoke their access.
+        </p>
+        <form method="POST" id="banForm">
+            <label style="font-size:.75rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:.4rem;">
+                Reason for Ban <span style="color:#dc2626;">*</span>
+            </label>
+            <textarea name="ban_reason" rows="3" required
+                      style="width:100%;border:1.5px solid #e0ddd5;border-radius:8px;padding:.65rem .85rem;font-size:.85rem;outline:none;resize:vertical;font-family:inherit;margin-bottom:1rem;"
+                      placeholder="e.g. Repeated policy violations, fraudulent activity..."></textarea>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+                <button type="button" onclick="closeBanModal()"
+                        style="background:#f3f4f6;border:none;padding:.6rem 1.25rem;border-radius:8px;font-weight:600;cursor:pointer;">
+                    Cancel
+                </button>
+                <button type="submit"
+                        style="background:#dc2626;color:#fff;border:none;padding:.6rem 1.25rem;border-radius:8px;font-weight:700;cursor:pointer;">
+                    Confirm Ban
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Tabs */
+.adm-tabs {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    background: #fff;
+    border: 1px solid #e8e8ec;
+    border-radius: 12px;
+    padding: .5rem;
+}
+.adm-tab {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .9rem;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 500;
+    color: #666;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+}
+.adm-tab:hover { background: #f3f4f6; color: #1a1a2e; }
+.adm-tab-active { background: #1a1a2e !important; color: #fff !important; font-weight: 600; }
+.adm-tab-count {
+    background: #f3f4f6;
+    color: #555;
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .1rem .45rem;
+    border-radius: 999px;
+}
+.adm-tab-active .adm-tab-count { background: rgba(255,255,255,.2); color: #fff; }
+.adm-tab-count-warn   { background: #fef3c7; color: #92400e; }
+.adm-tab-count-danger { background: #fee2e2; color: #991b1b; }
+.adm-tab-divider { width: 1px; height: 20px; background: #e8e8ec; margin: 0 .25rem; }
+
+/* Alert banner */
+.adm-alert-banner {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    border-radius: 12px;
+    padding: .9rem 1.25rem;
+    margin-bottom: 1.25rem;
+    font-size: .85rem;
+}
+.adm-alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.adm-alert-link { margin-left: auto; font-weight: 700; color: inherit; text-decoration: none; }
+
+/* Row states */
+.adm-row-banned td  { background: #fff8f8 !important; }
+.adm-row-pending td { background: #fffdf0 !important; }
+
+/* User avatar */
+.adm-user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; font-weight: 800;
+    flex-shrink: 0;
+}
+.adm-avatar-buyer  { background: #dbeafe; color: #1e40af; }
+.adm-avatar-seller { background: #d1fae5; color: #065f46; }
+.adm-avatar-rider  { background: #fef3c7; color: #92400e; }
+.adm-avatar-admin  { background: #fee2e2; color: #991b1b; }
+
+/* KYC doc links */
+.adm-doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: #374151;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: .2rem .55rem;
+    text-decoration: none;
+    transition: background .15s;
+}
+.adm-doc-link:hover { background: #f3f4f6; color: #1a1a2e; }
+.adm-doc-verified { color: #059669; font-size: .65rem; }
+
+/* Action group */
+.adm-action-group { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+
+/* Dropdown */
+.adm-dropdown { position: relative; }
+.adm-dropdown-toggle { min-width: 32px; justify-content: center; font-size: 1rem; }
+.adm-dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid #e8e8ec;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    min-width: 180px;
+    z-index: 100;
+    overflow: hidden;
+    padding: .4rem;
+}
+.adm-dropdown:hover .adm-dropdown-menu,
+.adm-dropdown:focus-within .adm-dropdown-menu { display: block; }
+.adm-dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: .5rem .75rem;
+    font-size: .82rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background .12s;
+    text-decoration: none;
+}
+.adm-dropdown-item:hover { background: #f3f4f6; color: #1a1a2e; }
+.adm-dropdown-danger { color: #dc2626 !important; }
+.adm-dropdown-danger:hover { background: #fff1f2 !important; }
+.adm-dropdown-label {
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: #aaa;
+    padding: .5rem .75rem .2rem;
+}
+.adm-dropdown-divider { height: 1px; background: #f0f0f4; margin: .3rem 0; }
+</style>
+
+<script>
+function openBanModal(userId, username) {
+    document.getElementById('banUsername').textContent = username
+    document.getElementById('banForm').action = `/admin/users/${userId}/ban`
+    const modal = document.getElementById('banModal')
+    modal.style.display = 'flex'
+}
+function closeBanModal() {
+    document.getElementById('banModal').style.display = 'none'
+}
+document.getElementById('banModal').addEventListener('click', function(e) {
+    if (e.target === this) closeBanModal()
+})
+</script>
+
 {% endblock %}

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin — Mode S7vn{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: #f4f5f7;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .adm-sidebar {
+            width: 256px;
+            min-height: 100vh;
+            background: #111827;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .adm-logo {
+            padding: 1.5rem 1.25rem 1.25rem;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .adm-logo-inner {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+        }
+        .adm-logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #c8a96e, #e8c97e);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .adm-logo-text { line-height: 1.2; }
+        .adm-logo-name {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #c8a96e;
+        }
+        .adm-logo-sub {
+            font-size: .68rem;
+            color: #6b7280;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .adm-nav {
+            flex: 1;
+            padding: 1rem .75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .adm-nav-section {
+            font-size: .62rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #4b5563;
+            padding: .85rem .5rem .3rem;
+        }
+        .adm-nav-link {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            padding: .55rem .75rem;
+            border-radius: 8px;
+            font-size: .84rem;
+            font-weight: 500;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: background .15s, color .15s;
+            border-left: 3px solid transparent;
+        }
+        .adm-nav-link:hover {
+            background: rgba(255,255,255,.05);
+            color: #f9fafb;
+        }
+        .adm-nav-link.active {
+            background: #1f2937;
+            color: #f9fafb;
+            border-left-color: #c8a96e;
+            font-weight: 600;
+        }
+        .adm-nav-icon { width: 18px; text-align: center; font-size: .9rem; flex-shrink: 0; }
+
+        .adm-sidebar-footer {
+            padding: .75rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .adm-nav-link.logout {
+            color: #f87171;
+        }
+        .adm-nav-link.logout:hover {
+            background: rgba(248,113,113,.08);
+            color: #f87171;
+        }
+
+        /* ── Main wrapper ────────────────────────────────────── */
+        .adm-main-wrap {
+            margin-left: 256px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── Top header bar ──────────────────────────────────── */
+        .adm-topbar {
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 2rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .adm-topbar-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .adm-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .adm-admin-pill {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding: .35rem .85rem .35rem .5rem;
+            font-size: .82rem;
+            font-weight: 600;
+            color: #374151;
+            text-decoration: none;
+        }
+        .adm-admin-avatar {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #c8a96e, #e8c97e);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .75rem;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        /* ── Page content ────────────────────────────────────── */
+        .adm-content {
+            flex: 1;
+            padding: 2rem;
+            background: #f4f5f7;
+        }
+
+        /* ── KPI Cards ───────────────────────────────────────── */
+        .adm-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 1200px) { .adm-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px)  { .adm-kpi-grid { grid-template-columns: 1fr; } }
+
+        .adm-kpi {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
+        }
+        .adm-kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: .75rem;
+        }
+        .adm-kpi-label {
+            font-size: .75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            color: #6b7280;
+        }
+        .adm-kpi-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+        }
+        .kpi-green  { background: #d1fae5; }
+        .kpi-blue   { background: #dbeafe; }
+        .kpi-amber  { background: #fef3c7; }
+        .kpi-purple { background: #ede9fe; }
+        .kpi-red    { background: #fee2e2; }
+        .kpi-teal   { background: #ccfbf1; }
+
+        .adm-kpi-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #111827;
+            line-height: 1;
+            margin-bottom: .3rem;
+        }
+        .adm-kpi-sub {
+            font-size: .75rem;
+            color: #9ca3af;
+        }
+        .adm-kpi-sub strong { color: #374151; }
+        .adm-kpi-badge {
+            display: inline-block;
+            font-size: .68rem;
+            font-weight: 700;
+            padding: .15rem .5rem;
+            border-radius: 999px;
+            margin-top: .35rem;
+        }
+        .badge-warn   { background: #fef3c7; color: #92400e; }
+        .badge-ok     { background: #d1fae5; color: #065f46; }
+        .badge-info   { background: #dbeafe; color: #1e40af; }
+
+        /* ── Cards ───────────────────────────────────────────── */
+        .adm-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
+            overflow: hidden;
+            margin-bottom: 1.25rem;
+        }
+        .adm-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .adm-card-title {
+            font-size: .9rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .adm-card-body { padding: 1.5rem; }
+
+        /* ── Tables ──────────────────────────────────────────── */
+        .adm-table { width: 100%; border-collapse: collapse; }
+        .adm-table thead th {
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            color: #6b7280;
+            padding: .75rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            background: #fafafa;
+            white-space: nowrap;
+        }
+        .adm-table tbody td {
+            padding: .85rem 1.5rem;
+            border-bottom: 1px solid #f9fafb;
+            font-size: .85rem;
+            color: #374151;
+            vertical-align: middle;
+        }
+        .adm-table tbody tr:last-child td { border-bottom: none; }
+        .adm-table tbody tr:hover td { background: #fafbff; }
+
+        /* ── Badges ──────────────────────────────────────────── */
+        .adm-badge {
+            font-size: .68rem;
+            font-weight: 700;
+            padding: .25rem .65rem;
+            border-radius: 999px;
+            letter-spacing: .3px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .adm-badge-pending   { background: #fef3c7; color: #92400e; }
+        .adm-badge-verified  { background: #dbeafe; color: #1e40af; }
+        .adm-badge-assigned  { background: #cffafe; color: #155e75; }
+        .adm-badge-shipped   { background: #f3f4f6; color: #374151; }
+        .adm-badge-delivered { background: #d1fae5; color: #065f46; }
+        .adm-badge-cancelled { background: #fee2e2; color: #991b1b; }
+        .adm-badge-active    { background: #d1fae5; color: #065f46; }
+        .adm-badge-inactive  { background: #fee2e2; color: #991b1b; }
+        .adm-badge-buyer     { background: #dbeafe; color: #1e40af; }
+        .adm-badge-seller    { background: #d1fae5; color: #065f46; }
+        .adm-badge-rider     { background: #fef3c7; color: #92400e; }
+        .adm-badge-admin     { background: #fee2e2; color: #991b1b; }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .adm-btn {
+            font-size: .78rem;
+            font-weight: 600;
+            padding: .35rem .85rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            transition: opacity .15s, transform .1s;
+            letter-spacing: .2px;
+        }
+        .adm-btn:hover { opacity: .85; transform: translateY(-1px); }
+        .adm-btn-approve  { background: #d1fae5; color: #065f46; }
+        .adm-btn-danger   { background: #fee2e2; color: #991b1b; }
+        .adm-btn-warning  { background: #fef3c7; color: #92400e; }
+        .adm-btn-primary  { background: #111827; color: #fff; }
+        .adm-btn-ghost    { background: #f3f4f6; color: #374151; }
+
+        /* ── Pagination ──────────────────────────────────────── */
+        .adm-pagination {
+            display: flex;
+            gap: .3rem;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #f3f4f6;
+            justify-content: flex-end;
+        }
+        .adm-page-btn {
+            width: 32px; height: 32px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            font-size: .78rem;
+            font-weight: 600;
+            color: #6b7280;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none;
+            transition: background .15s;
+        }
+        .adm-page-btn:hover { background: #f3f4f6; color: #111827; }
+        .adm-page-btn.active { background: #111827; color: #fff; border-color: #111827; }
+
+        /* ── Page header ─────────────────────────────────────── */
+        .adm-page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: .75rem;
+        }
+        .adm-page-title { font-size: 1.35rem; font-weight: 800; color: #111827; margin: 0; }
+        .adm-page-sub   { font-size: .82rem; color: #6b7280; margin-top: .2rem; }
+
+        /* ── Alert row ───────────────────────────────────────── */
+        .adm-alert-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .adm-alert-card {
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            text-decoration: none;
+            transition: opacity .15s;
+        }
+        .adm-alert-card:hover { opacity: .85; }
+        .adm-alert-amber { background: #fffbeb; border: 1px solid #fde68a; }
+        .adm-alert-blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+        .adm-alert-icon  { font-size: 1.5rem; flex-shrink: 0; }
+        .adm-alert-title { font-weight: 700; font-size: .88rem; }
+        .adm-alert-sub   { font-size: .75rem; margin-top: .1rem; }
+        .adm-alert-amber .adm-alert-title { color: #92400e; }
+        .adm-alert-amber .adm-alert-sub   { color: #b45309; }
+        .adm-alert-blue  .adm-alert-title { color: #1e40af; }
+        .adm-alert-blue  .adm-alert-sub   { color: #3b82f6; }
+
+        /* ── Toast ───────────────────────────────────────────── */
+        .toast-container { z-index: 9999; }
+        .toast { min-width: 280px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+        .toast-success { background: #065f46; color: #fff; }
+        .toast-danger  { background: #991b1b; color: #fff; }
+        .toast-warning { background: #92400e; color: #fff; }
+        .toast-info    { background: #1e40af; color: #fff; }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .adm-sidebar { transform: translateX(-100%); }
+            .adm-main-wrap { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    {# ── Sidebar ── #}
+    <aside class="adm-sidebar">
+        <div class="adm-logo">
+            <div class="adm-logo-inner">
+                <div class="adm-logo-icon">🔧</div>
+                <div class="adm-logo-text">
+                    <div class="adm-logo-name">Mode S7vn</div>
+                    <div class="adm-logo-sub">Admin Panel</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="adm-nav">
+            <div class="adm-nav-section">Overview</div>
+            <a href="{{ url_for('admin.dashboard') }}"
+               class="adm-nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                <span class="adm-nav-icon">📊</span> Dashboard
+            </a>
+            <a href="{{ url_for('admin.reports') }}"
+               class="adm-nav-link {% if active_page == 'reports' %}active{% endif %}">
+                <span class="adm-nav-icon">📈</span> Reports
+            </a>
+
+            <div class="adm-nav-section">Management</div>
+            <a href="{{ url_for('admin.manage_orders') }}"
+               class="adm-nav-link {% if active_page == 'orders' %}active{% endif %}">
+                <span class="adm-nav-icon">📋</span> Orders
+            </a>
+            <a href="{{ url_for('admin.manage_products') }}"
+               class="adm-nav-link {% if active_page == 'products' %}active{% endif %}">
+                <span class="adm-nav-icon">📦</span> Products
+            </a>
+            <a href="{{ url_for('admin.manage_users') }}"
+               class="adm-nav-link {% if active_page == 'users' %}active{% endif %}">
+                <span class="adm-nav-icon">👥</span> Users
+            </a>
+            <a href="{{ url_for('admin.manage_sellers') }}"
+               class="adm-nav-link {% if active_page == 'sellers' %}active{% endif %}">
+                <span class="adm-nav-icon">🏪</span> Sellers
+            </a>
+            <a href="{{ url_for('admin.manage_riders') }}"
+               class="adm-nav-link {% if active_page == 'riders' %}active{% endif %}">
+                <span class="adm-nav-icon">🏍️</span> Riders
+            </a>
+
+            <div class="adm-nav-section">Account</div>
+            <a href="{{ url_for('main.index') }}" class="adm-nav-link">
+                <span class="adm-nav-icon">🌐</span> View Site
+            </a>
+        </nav>
+
+        <div class="adm-sidebar-footer">
+            <a href="{{ url_for('auth.logout') }}" class="adm-nav-link logout">
+                <span class="adm-nav-icon">🚪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    {# ── Main wrapper ── #}
+    <div class="adm-main-wrap">
+
+        {# Top header bar #}
+        <header class="adm-topbar">
+            <span class="adm-topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+            <div class="adm-topbar-right">
+                {# Toast container lives here #}
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% for category, message in messages %}
+                        <div class="toast align-items-center border-0 toast-{{ category }} show"
+                             role="alert" data-bs-autohide="true" data-bs-delay="4000">
+                            <div class="d-flex">
+                                <div class="toast-body">{{ message }}</div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                                        data-bs-dismiss="toast"></button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endwith %}
+                </div>
+                <a href="{{ url_for('auth.profile') }}" class="adm-admin-pill">
+                    <div class="adm-admin-avatar">{{ current_user.username[0].upper() }}</div>
+                    {{ current_user.username }}
+                </a>
+            </div>
+        </header>
+
+        {# Page content #}
+        <main class="adm-content">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.toast').forEach(el => new bootstrap.Toast(el, {delay:4000}).show())
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

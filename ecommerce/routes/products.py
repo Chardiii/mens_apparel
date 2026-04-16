@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
-from models import db, Product, ProductImage, Order, OrderItem, Review
+from models import db, Product, ProductImage, ProductVariant, Order, OrderItem, Review
 from sqlalchemy import func
 import os
 import uuid
@@ -169,22 +169,141 @@ def seller_dashboard():
         flash('Not authorized.', 'danger')
         return redirect(url_for('main.index'))
 
-    products = Product.query.filter_by(seller_id=current_user.id).all()
+    from datetime import date, timedelta
 
-    total_orders = db.session.query(func.count(Order.id))\
-        .filter_by(seller_id=current_user.id).scalar() or 0
-    pending_orders = db.session.query(func.count(Order.id))\
-        .filter_by(seller_id=current_user.id, status='pending').scalar() or 0
+    # Inventory filters
+    inv_search       = request.args.get('q', '').strip()
+    inv_stock_filter = request.args.get('stock_filter', '')
+    inv_cat_filter   = request.args.get('cat_filter', '')
+
+    pq = Product.query.filter_by(seller_id=current_user.id)
+    if inv_search:
+        pq = pq.filter(Product.name.ilike(f'%{inv_search}%'))
+    if inv_stock_filter == 'out':
+        pq = pq.filter(Product.stock == 0)
+    elif inv_stock_filter == 'low':
+        pq = pq.filter(Product.stock > 0, Product.stock <= 5)
+    elif inv_stock_filter == 'in':
+        pq = pq.filter(Product.stock > 0)
+    if inv_cat_filter:
+        pq = pq.filter_by(category=inv_cat_filter)
+    products = pq.order_by(Product.created_at.desc()).all()
+
+    # Core order stats
+    total_orders     = Order.query.filter_by(seller_id=current_user.id).count()
+    pending_orders   = Order.query.filter_by(seller_id=current_user.id, status='pending').count()
+    delivered_orders = Order.query.filter_by(seller_id=current_user.id, status='delivered').count()
     revenue = db.session.query(func.sum(Order.total_amount))\
         .filter_by(seller_id=current_user.id, status='delivered').scalar() or 0
 
+    # Revenue trend vs previous 7 days
+    today = date.today()
+    week_ago = today - timedelta(days=7)
+    two_weeks_ago = today - timedelta(days=14)
+    rev_this_week = db.session.query(func.sum(Order.total_amount)).filter(
+        Order.seller_id == current_user.id,
+        Order.status == 'delivered',
+        func.date(Order.delivered_at) >= week_ago
+    ).scalar() or 0
+    rev_last_week = db.session.query(func.sum(Order.total_amount)).filter(
+        Order.seller_id == current_user.id,
+        Order.status == 'delivered',
+        func.date(Order.delivered_at) >= two_weeks_ago,
+        func.date(Order.delivered_at) < week_ago
+    ).scalar() or 0
+    if rev_last_week:
+        revenue_trend = round((float(rev_this_week) - float(rev_last_week)) / float(rev_last_week) * 100, 1)
+    elif rev_this_week:
+        revenue_trend = 100.0
+    else:
+        revenue_trend = 0.0
+
+    # Product stats
+    all_products     = Product.query.filter_by(seller_id=current_user.id).all()
+    total_products   = len(all_products)
+    active_products  = sum(1 for p in all_products if p.is_active)
+    out_of_stock     = sum(1 for p in all_products if p.stock == 0)
+    low_stock_list   = [p for p in all_products if 0 < p.stock <= 5]
+    low_stock_count  = len(low_stock_list)
+
+    # Ratings
+    ratings = [p.rating for p in all_products if p.review_count > 0]
+    avg_rating   = round(sum(ratings) / len(ratings), 1) if ratings else 0.0
+    total_reviews = sum(p.review_count for p in all_products)
+
+    # 7-day revenue chart
+    chart_labels, chart_revenue = [], []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_rev = db.session.query(func.sum(Order.total_amount)).filter(
+            Order.seller_id == current_user.id,
+            Order.status == 'delivered',
+            func.date(Order.delivered_at) == day
+        ).scalar() or 0
+        chart_labels.append(day.strftime('%b %d'))
+        chart_revenue.append(round(float(day_rev), 2))
+
+    # Orders by status for donut
+    status_rows = db.session.query(Order.status, func.count(Order.id))\
+        .filter_by(seller_id=current_user.id).group_by(Order.status).all()
+    status_labels = [r[0] for r in status_rows]
+    status_data   = [r[1] for r in status_rows]
+
+    recent_orders = Order.query.filter_by(seller_id=current_user.id)\
+        .order_by(Order.created_at.desc()).limit(5).all()
+
     stats = {
-        'total_orders': total_orders,
-        'pending_orders': pending_orders,
-        'revenue': round(float(revenue), 2)
+        'revenue':          round(float(revenue), 2),
+        'revenue_trend':    revenue_trend,
+        'total_orders':     total_orders,
+        'pending_orders':   pending_orders,
+        'delivered_orders': delivered_orders,
+        'total_products':   total_products,
+        'active_products':  active_products,
+        'out_of_stock':     out_of_stock,
+        'low_stock_products': low_stock_count,
+        'low_stock_list':   low_stock_list,
+        'avg_rating':       avg_rating,
+        'total_reviews':    total_reviews,
     }
 
-    return render_template('seller_dashboard.html', products=products, stats=stats)
+    return render_template('seller_dashboard.html',
+                           products=products, stats=stats,
+                           recent_orders=recent_orders,
+                           chart_labels=chart_labels,
+                           chart_revenue=chart_revenue,
+                           status_labels=status_labels,
+                           status_data=status_data,
+                           categories=CATEGORIES,
+                           inv_search=inv_search,
+                           inv_stock_filter=inv_stock_filter,
+                           inv_cat_filter=inv_cat_filter)
+
+
+@products_bp.route('/seller/orders')
+@login_required
+def seller_orders():
+    if not current_user.is_seller():
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('main.index'))
+    filter_status = request.args.get('status', '')
+    query = Order.query.filter_by(seller_id=current_user.id)
+    if filter_status:
+        query = query.filter_by(status=filter_status)
+    orders = query.order_by(Order.created_at.desc()).all()
+    return render_template('seller_orders.html', orders=orders, filter_status=filter_status)
+
+
+@products_bp.route('/seller/products/<int:product_id>/toggle', methods=['POST'])
+@login_required
+def seller_toggle_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    if product.seller_id != current_user.id:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('products.seller_dashboard'))
+    product.is_active = not product.is_active
+    db.session.commit()
+    return redirect(url_for('products.seller_dashboard') + '#inventory')
 
 
 @products_bp.route('/seller/add', methods=['GET', 'POST'])
@@ -195,32 +314,57 @@ def add_product():
         return redirect(url_for('main.index'))
 
     if request.method == 'POST':
-        name = request.form.get('name')
+        name        = request.form.get('name')
         description = request.form.get('description')
-        price = request.form.get('price', type=float)
-        stock = request.form.get('stock', type=int)
-        category = request.form.get('category')
+        price       = request.form.get('price', type=float)
+        category    = request.form.get('category')
 
-        if not all([name, price, stock]):
-            flash('Name, price, and stock are required.', 'danger')
+        if not all([name, price, category]):
+            flash('Name, price, and category are required.', 'danger')
             return redirect(url_for('products.add_product'))
 
-        product = Product(seller_id=current_user.id, name=name,
-                          description=description, price=price,
-                          stock=stock, category=category)
+        # Variant data
+        v_sizes     = request.form.getlist('variant_size[]')
+        v_colors    = request.form.getlist('variant_color[]')
+        v_stocks    = request.form.getlist('variant_stock[]')
+        v_price_adj = request.form.getlist('variant_price_adj[]')
+        has_variants = any(s.strip() for s in v_sizes)
+
+        if has_variants:
+            total_stock = sum(int(s or 0) for s in v_stocks)
+        else:
+            total_stock = request.form.get('stock', 0, type=int)
+
+        product = Product(
+            seller_id=current_user.id, name=name,
+            description=description, price=price,
+            stock=total_stock, category=category
+        )
         db.session.add(product)
         db.session.flush()
 
-        # Handle image uploads
+        # Save variants
+        if has_variants:
+            for i, size in enumerate(v_sizes):
+                if not size.strip():
+                    continue
+                db.session.add(ProductVariant(
+                    product_id=product.id,
+                    size=size.strip(),
+                    color=(v_colors[i].strip() if i < len(v_colors) else '') or None,
+                    stock=int(v_stocks[i]) if i < len(v_stocks) and v_stocks[i] else 0,
+                    price_adj=float(v_price_adj[i]) if i < len(v_price_adj) and v_price_adj[i] else 0.0,
+                    sku=f"{product.id}-{size.strip()}-{(v_colors[i].strip() if i < len(v_colors) else '') or 'NA'}"
+                ))
+
+        # Images
         images = request.files.getlist('images')
         first = True
         for file in images:
             if file and file.filename and allowed_file(file.filename):
                 filename = save_image(file)
                 db.session.add(ProductImage(
-                    product_id=product.id,
-                    image_url=filename,
-                    is_primary=first
+                    product_id=product.id, image_url=filename, is_primary=first
                 ))
                 first = False
 
@@ -241,13 +385,66 @@ def edit_product(product_id):
         return redirect(url_for('main.index'))
 
     if request.method == 'POST':
-        product.name = request.form.get('name', product.name)
+        product.name        = request.form.get('name', product.name).strip()
         product.description = request.form.get('description', product.description)
-        product.price = request.form.get('price', type=float) or product.price
-        product.stock = request.form.get('stock', type=int) or product.stock
-        product.category = request.form.get('category', product.category)
+        new_price           = request.form.get('price', type=float)
+        if new_price is not None:
+            product.price   = new_price
+        product.category    = request.form.get('category', product.category)
 
-        # New images
+        # ── Variant handling ──────────────────────────────────────────────
+        v_ids       = request.form.getlist('variant_id[]')
+        v_sizes     = request.form.getlist('variant_size[]')
+        v_colors    = request.form.getlist('variant_color[]')
+        v_stocks    = request.form.getlist('variant_stock[]')
+        v_price_adj = request.form.getlist('variant_price_adj[]')
+
+        has_variants = any(s.strip() for s in v_sizes)
+
+        if has_variants:
+            submitted_ids = set()
+            for i, size in enumerate(v_sizes):
+                if not size.strip():
+                    continue
+                vid       = int(v_ids[i]) if i < len(v_ids) and v_ids[i] else None
+                color     = (v_colors[i].strip() if i < len(v_colors) else '') or None
+                stock     = int(v_stocks[i]) if i < len(v_stocks) and v_stocks[i] else 0
+                price_adj = float(v_price_adj[i]) if i < len(v_price_adj) and v_price_adj[i] else 0.0
+
+                if vid:
+                    variant = ProductVariant.query.get(vid)
+                    if variant and variant.product_id == product.id:
+                        variant.size      = size.strip()
+                        variant.color     = color
+                        variant.stock     = stock
+                        variant.price_adj = price_adj
+                        submitted_ids.add(vid)
+                else:
+                    new_v = ProductVariant(
+                        product_id=product.id,
+                        size=size.strip(),
+                        color=color,
+                        stock=stock,
+                        price_adj=price_adj,
+                        sku=f"{product.id}-{size.strip()}-{color or 'NA'}"
+                    )
+                    db.session.add(new_v)
+                    db.session.flush()
+                    submitted_ids.add(new_v.id)
+
+            for existing in product.variants.all():
+                if existing.id not in submitted_ids:
+                    db.session.delete(existing)
+
+            db.session.flush()
+            product.stock = sum(v.stock for v in product.variants.all())
+        else:
+            flat_stock = request.form.get('stock', type=int)
+            if flat_stock is not None:
+                product.stock = flat_stock
+            for v in product.variants.all():
+                db.session.delete(v)
+        # ── Images ───────────────────────────────────────────────────────
         images = request.files.getlist('images')
         has_primary = product.images.filter_by(is_primary=True).first() is not None
         for file in images:
@@ -264,7 +461,18 @@ def edit_product(product_id):
         flash('Product updated successfully!', 'success')
         return redirect(url_for('products.seller_dashboard'))
 
-    return render_template('edit_product.html', product=product, categories=CATEGORIES)
+    # Build size options for the template based on current category
+    size_map = {
+        'Suits & Blazers':           ['XS','S','M','L','XL','XXL'],
+        'Casual Shirts & Pants':     ['XS','S','M','L','XL','XXL'],
+        'Outerwear & Jackets':       ['XS','S','M','L','XL','XXL'],
+        'Activewear & Fitness Gear': ['XS','S','M','L','XL','XXL'],
+        'Shoes & Accessories':       ['38','39','40','41','42','43','44','45'],
+    }
+    size_options = size_map.get(product.category, [])
+
+    return render_template('edit_product.html', product=product,
+                           categories=CATEGORIES, size_options=size_options)
 
 
 @products_bp.route('/seller/delete/<int:product_id>', methods=['POST'])

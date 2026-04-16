@@ -1,6 +1,5 @@
 {% extends "base.html" %}
-
-{% block title %}Cart - Mode S7vn{% endblock %}
+{% block title %}Cart — Mode S7vn{% endblock %}
 
 {% block content %}
 <div class="row mb-3">
@@ -14,12 +13,12 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-body p-0">
-                <table class="table mb-0">
+                <table class="table mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Product</th>
                             <th>Price</th>
-                            <th>Quantity</th>
+                            <th style="width:150px;">Quantity</th>
                             <th>Subtotal</th>
                             <th></th>
                         </tr>
@@ -27,21 +26,42 @@
                     <tbody>
                         {% for item in cart_items %}
                         <tr>
-                            <td class="align-middle">
-                                <a href="{{ url_for('products.view_product', product_id=item.product.id) }}">
+                            <td>
+                                <a href="{{ url_for('products.view_product', product_id=item.product.id) }}"
+                                   style="font-weight:600;color:#111827;text-decoration:none;">
                                     {{ item.product.name }}
                                 </a>
+                                {% if item.variant %}
+                                <div style="margin-top:.2rem;display:flex;gap:.35rem;flex-wrap:wrap;">
+                                    <span style="font-size:.72rem;font-weight:600;background:#f3f4f6;
+                                                 color:#374151;padding:.15rem .55rem;border-radius:999px;">
+                                        {{ item.variant.size }}
+                                    </span>
+                                    {% if item.variant.color %}
+                                    <span style="font-size:.72rem;font-weight:600;background:#f3f4f6;
+                                                 color:#374151;padding:.15rem .55rem;border-radius:999px;">
+                                        {{ item.variant.color }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </td>
-                            <td class="align-middle">₱{{ "%.2f"|format(item.product.price) }}</td>
-                            <td class="align-middle" style="width:140px;">
-                                <form method="POST" action="{{ url_for('orders.update_cart', product_id=item.product.id) }}" class="d-flex gap-1">
-                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control form-control-sm">
+                            <td>₱{{ "%.2f"|format(item.price) }}</td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('orders.update_cart', cart_key=item.cart_key) }}"
+                                      class="d-flex gap-1">
+                                    {% set max_stock = item.variant.stock if item.variant else item.product.stock %}
+                                    <input type="number" name="quantity" value="{{ item.quantity }}"
+                                           min="1" max="{{ max_stock }}"
+                                           class="form-control form-control-sm">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary">↻</button>
                                 </form>
                             </td>
-                            <td class="align-middle">₱{{ "%.2f"|format(item.subtotal) }}</td>
-                            <td class="align-middle">
-                                <form method="POST" action="{{ url_for('orders.remove_from_cart', product_id=item.product.id) }}">
+                            <td>₱{{ "%.2f"|format(item.subtotal) }}</td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('orders.remove_from_cart', cart_key=item.cart_key) }}">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">✕</button>
                                 </form>
                             </td>
@@ -54,7 +74,7 @@
         <a href="{{ url_for('products.list_products') }}" class="btn btn-link mt-2">← Continue Shopping</a>
         <form method="POST" action="{{ url_for('orders.clear_cart') }}" class="d-inline">
             <button type="submit" class="btn btn-link text-danger mt-2"
-                onclick="return confirm('Clear entire cart?')">🗑 Clear Cart</button>
+                    onclick="return confirm('Clear entire cart?')">🗑 Clear Cart</button>
         </form>
     </div>
 
@@ -62,20 +82,28 @@
         <div class="card">
             <div class="card-header"><h5 class="mb-0">Order Summary</h5></div>
             <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Subtotal</span>
-                    <span>₱{{ "%.2f"|format(total) }}</span>
+                {% for item in cart_items %}
+                <div class="d-flex justify-content-between mb-1" style="font-size:.85rem;">
+                    <span style="color:#6b7280;">
+                        {{ item.product.name }}
+                        {% if item.variant %} · {{ item.variant.size }}{% if item.variant.color %}/{{ item.variant.color }}{% endif %}{% endif %}
+                        × {{ item.quantity }}
+                    </span>
+                    <span>₱{{ "%.2f"|format(item.subtotal) }}</span>
                 </div>
-                <div class="d-flex justify-content-between mb-3">
+                {% endfor %}
+                <hr>
+                <div class="d-flex justify-content-between mb-2">
                     <span>Payment</span>
                     <span class="text-success fw-bold">Cash on Delivery</span>
                 </div>
-                <hr>
                 <div class="d-flex justify-content-between fw-bold mb-3">
                     <span>Total</span>
                     <span>₱{{ "%.2f"|format(total) }}</span>
                 </div>
-                <a href="{{ url_for('orders.checkout') }}" class="btn btn-success w-100">Proceed to Checkout</a>
+                <a href="{{ url_for('orders.checkout') }}" class="btn btn-success w-100">
+                    Proceed to Checkout
+                </a>
             </div>
         </div>
     </div>

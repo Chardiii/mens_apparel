@@ -1,79 +1,277 @@
-{% extends "base.html" %}
+{% extends "seller_base.html" %}
+{% set active_page = 'inventory' %}
 
-{% block title %}Edit Product - Mode S7vn{% endblock %}
+{% block title %}Edit Product — Mode S7vn{% endblock %}
+{% block page_title %}Edit Product{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Edit Product</h5></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('products.edit_product', product_id=product.id) }}" enctype="multipart/form-data" data-validate>
-                    <div class="mb-3">
-                        <label class="form-label">Product Name</label>
-                        <input type="text" class="form-control" name="name" value="{{ product.name }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" name="description" rows="3">{{ product.description or '' }}</textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Category <span class="text-danger">*</span></label>
-                            <select class="form-select" name="category" required>
-                                <option value="">— Select Category —</option>
-                                {% for cat in categories %}
-                                <option value="{{ cat }}" {{ 'selected' if product.category == cat }}>{{ cat }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Price (₱)</label>
-                            <input type="number" class="form-control" name="price" step="0.01" value="{{ product.price }}" required>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Stock</label>
-                            <input type="number" class="form-control" name="stock" value="{{ product.stock }}" required>
-                        </div>
-                    </div>
+{% set variants = product.variants.all() %}
+{% set images = product.images.all() %}
 
-                    {# Existing images #}
-                    {% set images = product.images.all() %}
-                    {% if images %}
-                    <div class="mb-3">
-                        <label class="form-label">Current Images</label>
-                        <div class="d-flex flex-wrap gap-2">
-                            {% for img in images %}
-                            <div class="position-relative">
-                                <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
-                                     class="rounded border" style="width:90px;height:90px;object-fit:cover;"
-                                     alt="Product image">
-                                {% if img.is_primary %}
-                                <span class="position-absolute top-0 start-0 badge bg-success" style="font-size:.6rem;">Primary</span>
-                                {% endif %}
-                                <form method="POST" action="{{ url_for('products.delete_image', image_id=img.id) }}"
-                                      style="position:absolute;top:2px;right:2px;">
-                                    <button type="submit" class="btn btn-danger btn-sm p-0 px-1"
-                                        onclick="return confirm('Delete this image?')" style="font-size:.7rem;">✕</button>
-                                </form>
+{# Image delete forms OUTSIDE the main form to avoid nested form bug #}
+{% for img in images %}
+<form id="del-img-{{ img.id }}"
+      method="POST"
+      action="{{ url_for('products.delete_image', image_id=img.id) }}"
+      style="display:none;"></form>
+{% endfor %}
+
+<div style="max-width:720px;">
+    <div class="sel-page-header">
+        <div>
+            <h1 class="sel-page-title">Edit Product</h1>
+            <p class="sel-page-sub">{{ product.name }}</p>
+        </div>
+    </div>
+
+    <div class="sel-card">
+        <div class="sel-card-body">
+            <form method="POST"
+                  action="{{ url_for('products.edit_product', product_id=product.id) }}"
+                  enctype="multipart/form-data"
+                  id="editForm">
+
+                {# ── Name ── #}
+                <div style="margin-bottom:1.25rem;">
+                    <label class="ep-label">Product Name *</label>
+                    <input type="text" name="name" value="{{ product.name }}"
+                           required class="ep-input">
+                </div>
+
+                {# ── Description ── #}
+                <div style="margin-bottom:1.25rem;">
+                    <label class="ep-label">Description</label>
+                    <textarea name="description" rows="3"
+                              class="ep-input" style="resize:vertical;">{{ product.description or '' }}</textarea>
+                </div>
+
+                {# ── Category + Price ── #}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+                    <div>
+                        <label class="ep-label">Category *</label>
+                        <select name="category" id="categorySelect" class="ep-input">
+                            <option value="">— Select Category —</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}"
+                                    {% if product.category == cat %}selected{% endif %}>
+                                {{ cat }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="ep-label">Base Price (₱) *</label>
+                        <input type="number" name="price" step="0.01" min="0"
+                               value="{{ product.price }}" required class="ep-input">
+                    </div>
+                </div>
+
+                {# ── Variants ── #}
+                <div id="variantSection"
+                     style="margin-bottom:1.25rem;{{ 'display:none;' if not variants }}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+                        <label class="ep-label" style="margin:0;">Variants &amp; Stock</label>
+                        <button type="button" id="addVariantBtn"
+                                class="sel-btn sel-btn-ghost" style="font-size:.75rem;">
+                            + Add Variant
+                        </button>
+                    </div>
+                    <div style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 28px;
+                                    gap:.5rem;padding:.5rem .75rem;background:#f3f4f6;
+                                    font-size:.7rem;font-weight:700;color:#6b7280;
+                                    text-transform:uppercase;letter-spacing:.5px;">
+                            <span id="sizeHeader">Size</span>
+                            <span>Color (optional)</span>
+                            <span>Stock</span>
+                            <span>+/- Price</span>
+                            <span></span>
+                        </div>
+                        <div id="variantRows"
+                             style="padding:.5rem .75rem;display:flex;flex-direction:column;gap:.4rem;">
+                            {% for v in variants %}
+                            <div class="variant-row"
+                                 style="display:grid;grid-template-columns:1fr 1fr 80px 80px 28px;
+                                        gap:.5rem;align-items:center;">
+                                <input type="hidden" name="variant_id[]" value="{{ v.id }}">
+                                <select name="variant_size[]" class="ep-cell">
+                                    <option value="">— Size —</option>
+                                    {% for s in size_options %}
+                                    <option value="{{ s }}"
+                                            {% if v.size == s %}selected{% endif %}>{{ s }}</option>
+                                    {% endfor %}
+                                    {% if v.size not in size_options %}
+                                    <option value="{{ v.size }}" selected>{{ v.size }}</option>
+                                    {% endif %}
+                                </select>
+                                <input type="text" name="variant_color[]"
+                                       value="{{ v.color or '' }}" placeholder="e.g. Black"
+                                       class="ep-cell">
+                                <input type="number" name="variant_stock[]"
+                                       value="{{ v.stock }}" min="0" class="ep-cell">
+                                <input type="number" name="variant_price_adj[]"
+                                       value="{{ v.price_adj }}" step="0.01" class="ep-cell">
+                                <button type="button" onclick="this.closest('.variant-row').remove()"
+                                        class="ep-del-btn">×</button>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
+                    <p style="font-size:.75rem;color:#9ca3af;margin-top:.4rem;">
+                        Removing a row deletes that variant. Stock is tracked per variant.
+                    </p>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Add More Images</label>
-                        <input type="file" class="form-control" name="images" multiple accept="image/*">
+                {# ── Flat stock (non-variant categories) ── #}
+                <div id="simpleStock"
+                     style="margin-bottom:1.25rem;{{ 'display:none;' if variants }}">
+                    <label class="ep-label">Stock</label>
+                    <input type="number" name="stock" min="0" id="simpleStockInput"
+                           value="{{ product.stock if not variants else 0 }}"
+                           class="ep-input" style="width:160px;">
+                </div>
+
+                {# ── Current images ── #}
+                {% if images %}
+                <div style="margin-bottom:1.25rem;">
+                    <label class="ep-label">Current Images</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:.6rem;">
+                        {% for img in images %}
+                        <div style="position:relative;">
+                            <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
+                                 style="width:88px;height:88px;object-fit:cover;border-radius:8px;
+                                        border:2px solid {{ '#c8a96e' if img.is_primary else '#e5e7eb' }};">
+                            {% if img.is_primary %}
+                            <span style="position:absolute;top:3px;left:3px;background:#065f46;
+                                         color:#fff;font-size:.58rem;font-weight:700;
+                                         padding:.1rem .4rem;border-radius:4px;">PRIMARY</span>
+                            {% endif %}
+                            <button type="button"
+                                    onclick="if(confirm('Delete this image?')) document.getElementById('del-img-{{ img.id }}').submit()"
+                                    style="position:absolute;top:3px;right:3px;background:#991b1b;
+                                           color:#fff;border:none;border-radius:4px;width:20px;
+                                           height:20px;font-size:.7rem;cursor:pointer;
+                                           display:flex;align-items:center;justify-content:center;">✕</button>
+                        </div>
+                        {% endfor %}
                     </div>
+                </div>
+                {% endif %}
 
-                    <button type="submit" class="btn btn-primary w-100">Save Changes</button>
-                </form>
-            </div>
-            <div class="card-footer">
-                <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-outline-secondary btn-sm">← Cancel</a>
-            </div>
+                {# ── Add images ── #}
+                <div style="margin-bottom:1.5rem;">
+                    <label class="ep-label">Add More Images</label>
+                    <input type="file" name="images" multiple accept="image/*"
+                           style="width:100%;padding:.45rem;border:1px solid #e5e7eb;
+                                  border-radius:8px;font-size:.85rem;">
+                </div>
+
+                {# ── Actions ── #}
+                <div style="display:flex;gap:.75rem;">
+                    <button type="submit"
+                            class="sel-btn sel-btn-gold"
+                            style="flex:1;justify-content:center;padding:.7rem;">
+                        Save Changes
+                    </button>
+                    <a href="{{ url_for('products.seller_dashboard') }}"
+                       class="sel-btn sel-btn-ghost"
+                       style="padding:.7rem 1.25rem;">Cancel</a>
+                </div>
+
+            </form>
         </div>
     </div>
 </div>
+
+<style>
+.ep-label {
+    font-size:.78rem;font-weight:700;color:#6b7280;
+    text-transform:uppercase;letter-spacing:.5px;
+    display:block;margin-bottom:.4rem;
+}
+.ep-input {
+    width:100%;padding:.55rem .85rem;
+    border:1px solid #e5e7eb;border-radius:8px;
+    font-size:.9rem;color:#111827;outline:none;
+    font-family:inherit;background:#fff;
+}
+.ep-cell {
+    padding:.4rem .6rem;border:1px solid #e5e7eb;
+    border-radius:6px;font-size:.83rem;outline:none;
+    font-family:inherit;background:#fff;width:100%;
+}
+.ep-del-btn {
+    background:#fee2e2;color:#991b1b;border:none;
+    border-radius:6px;width:26px;height:26px;
+    cursor:pointer;font-size:.9rem;
+    display:flex;align-items:center;justify-content:center;
+}
+</style>
+
+<script>
+const VARIANT_CATS = {
+    'Suits & Blazers':           ['XS','S','M','L','XL','XXL'],
+    'Casual Shirts & Pants':     ['XS','S','M','L','XL','XXL'],
+    'Outerwear & Jackets':       ['XS','S','M','L','XL','XXL'],
+    'Activewear & Fitness Gear': ['XS','S','M','L','XL','XXL'],
+    'Shoes & Accessories':       ['38','39','40','41','42','43','44','45'],
+    'Grooming Products':         null,
+}
+
+const catSel    = document.getElementById('categorySelect')
+const vSection  = document.getElementById('variantSection')
+const sSection  = document.getElementById('simpleStock')
+const sInput    = document.getElementById('simpleStockInput')
+const vRows     = document.getElementById('variantRows')
+const sizeHdr   = document.getElementById('sizeHeader')
+const addBtn    = document.getElementById('addVariantBtn')
+
+let sizes = VARIANT_CATS[catSel.value] || []
+
+function sizeOpts(sel) {
+    return '<option value="">— Size —</option>' +
+        sizes.map(s => `<option value="${s}"${s===sel?' selected':''}>${s}</option>`).join('')
+}
+
+function newRow() {
+    const d = document.createElement('div')
+    d.className = 'variant-row'
+    d.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 80px 80px 28px;gap:.5rem;align-items:center;'
+    d.innerHTML = `
+        <input type="hidden" name="variant_id[]" value="">
+        <select name="variant_size[]" class="ep-cell">${sizeOpts('')}</select>
+        <input type="text"   name="variant_color[]"     value="" placeholder="e.g. Black" class="ep-cell">
+        <input type="number" name="variant_stock[]"     value="0" min="0"    class="ep-cell">
+        <input type="number" name="variant_price_adj[]" value="0" step="0.01" class="ep-cell">
+        <button type="button" onclick="this.closest('.variant-row').remove()" class="ep-del-btn">×</button>`
+    return d
+}
+
+function applyCategory() {
+    const s = VARIANT_CATS[catSel.value]
+    if (s) {
+        sizes = s
+        sizeHdr.textContent = catSel.value.includes('Shoes') ? 'Shoe Size (EU)' : 'Size'
+        vSection.style.display = 'block'
+        sSection.style.display = 'none'
+        sInput.disabled = true
+        // refresh existing dropdowns
+        vRows.querySelectorAll('select[name="variant_size[]"]').forEach(el => {
+            const cur = el.value
+            el.innerHTML = sizeOpts(cur)
+        })
+    } else {
+        sizes = []
+        vSection.style.display = 'none'
+        sSection.style.display = 'block'
+        sInput.disabled = false
+    }
+}
+
+catSel.addEventListener('change', applyCategory)
+addBtn.addEventListener('click', () => vRows.appendChild(newRow()))
+
+// Run on load
+applyCategory()
+</script>
 {% endblock %}

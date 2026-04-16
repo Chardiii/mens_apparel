@@ -154,7 +154,7 @@
                     {% set primary = product.images.filter_by(is_primary=True).first() %}
                     {% if primary %}
                     <img src="{{ url_for('static', filename='uploads/' ~ primary.image_url) }}"
-                         class="card-img-top" style="height:190px;object-fit:cover;" alt="{{ product.name }}">
+                         class="card-img-top" style="height:190px;object-fit:contain;background:#f8f6f1;padding:8px;" alt="{{ product.name }}">
                     {% else %}
                     <div class="bg-light d-flex align-items-center justify-content-center"
                          style="height:190px;">
