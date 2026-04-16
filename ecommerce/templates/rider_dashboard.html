@@ -1,116 +1,231 @@
 {% extends "base.html" %}
-
-{% block title %}Rider Dashboard - Mode S7vn{% endblock %}
+{% block title %}Rider Dashboard — Mode S7vn{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>Rider Dashboard</h2>
-        <p class="text-muted mb-0">Welcome, {{ current_user.username }}
-            {% if current_user.vehicle_type %} · {{ current_user.vehicle_type }}{% endif %}
-            {% if current_user.vehicle_number %} ({{ current_user.vehicle_number }}){% endif %}
-        </p>
-    </div>
-</div>
+<div style="max-width:900px;margin:0 auto;">
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card text-center border-warning">
-            <div class="card-body">
-                <div class="fs-1">📦</div>
-                <h5 class="card-title">Active Deliveries</h5>
-                <p class="display-5 fw-bold text-warning">{{ active_orders|length }}</p>
-            </div>
+    {# ── Header ── #}
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;
+                margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
+        <div>
+            <h2 style="margin:0;font-weight:800;color:#111827;">Rider Dashboard</h2>
+            <p style="margin:.25rem 0 0;color:#6b7280;font-size:.88rem;">
+                {{ current_user.username }}
+                {% if current_user.vehicle_type %} · {{ current_user.vehicle_type }}{% endif %}
+                {% if current_user.plate_number %} · {{ current_user.plate_number }}{% endif %}
+            </p>
         </div>
+        <span style="font-size:.75rem;font-weight:700;padding:.35rem .85rem;border-radius:999px;
+                     background:{{ '#d1fae5' if current_user.is_active else '#fee2e2' }};
+                     color:{{ '#065f46' if current_user.is_active else '#991b1b' }};">
+            {{ 'ACTIVE' if current_user.is_active else 'INACTIVE' }}
+        </span>
     </div>
-    <div class="col-md-4">
-        <div class="card text-center border-success">
-            <div class="card-body">
-                <div class="fs-1">✅</div>
-                <h5 class="card-title">Completed</h5>
-                <p class="display-5 fw-bold text-success">{{ completed }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center border-primary">
-            <div class="card-body">
-                <div class="fs-1">🏍️</div>
-                <h5 class="card-title">Status</h5>
-                <p class="display-5 fw-bold text-primary">
-                    {% if current_user.is_active %}Active{% else %}Inactive{% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">Active Deliveries</h5>
+    {# ── KPI Cards ── #}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                    padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+            <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:.6px;color:#6b7280;margin-bottom:.5rem;">Active Deliveries</div>
+            <div style="font-size:2rem;font-weight:800;color:#111827;line-height:1;">
+                {{ active_orders|length }}
+            </div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.3rem;">Currently in transit</div>
+        </div>
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                    padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+            <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:.6px;color:#6b7280;margin-bottom:.5rem;">Total Delivered</div>
+            <div style="font-size:2rem;font-weight:800;color:#111827;line-height:1;">
+                {{ completed }}
+            </div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.3rem;">All time</div>
+        </div>
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                    padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+            <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:.6px;color:#6b7280;margin-bottom:.5rem;">COD This Week</div>
+            <div style="font-size:2rem;font-weight:800;color:#059669;line-height:1;">
+                ₱{{ "%.2f"|format(this_week) }}
+            </div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.3rem;">
+                ₱{{ "%.2f"|format(earnings) }} all time
+            </div>
+        </div>
+
     </div>
-    <div class="card-body p-0">
+
+    {# ── Active Deliveries ── #}
+    <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                overflow:hidden;margin-bottom:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:1rem 1.5rem;border-bottom:1px solid #f3f4f6;">
+            <span style="font-size:.9rem;font-weight:700;color:#111827;">Active Deliveries</span>
+            {% if active_orders %}
+            <span style="font-size:.75rem;font-weight:600;background:#fef3c7;color:#92400e;
+                         padding:.2rem .6rem;border-radius:999px;">
+                {{ active_orders|length }} pending
+            </span>
+            {% endif %}
+        </div>
+
         {% if active_orders %}
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Order #</th>
-                    <th>Buyer</th>
-                    <th>Deliver To</th>
-                    <th>Amount (COD)</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in active_orders %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}">
-                            {{ order.order_number }}
-                        </a>
-                    </td>
-                    <td>{{ order.buyer.username }}<br>
-                        <small class="text-muted">{{ order.buyer.phone or '' }}</small>
-                    </td>
-                    <td>
-                        {{ order.delivery_address }}<br>
-                        <small class="text-muted">{{ order.delivery_city }}{% if order.delivery_zip %}, {{ order.delivery_zip }}{% endif %}</small>
-                    </td>
-                    <td class="fw-bold">₱{{ "%.2f"|format(order.total_amount) }}</td>
-                    <td>
-                        {% if order.status == 'assigned' %}
-                        <span class="badge bg-info text-dark">ASSIGNED</span>
-                        {% elif order.status == 'shipped' %}
-                        <span class="badge bg-secondary">PICKED UP</span>
-                        {% endif %}
-                    </td>
-                    <td>
+        <div style="display:flex;flex-direction:column;gap:0;">
+            {% for order in active_orders %}
+            {% set maps_query = (order.delivery_address ~ ', ' ~ order.delivery_city)|urlencode %}
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #f9fafb;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;
+                            gap:1rem;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem;flex-wrap:wrap;">
+                            <a href="{{ url_for('orders.order_detail', order_id=order.id) }}"
+                               style="font-weight:700;color:#111827;text-decoration:none;font-size:.9rem;">
+                                {{ order.order_number }}
+                            </a>
+                            {% if order.status == 'assigned' %}
+                            <span style="font-size:.68rem;font-weight:700;padding:.2rem .55rem;
+                                         border-radius:999px;background:#cffafe;color:#155e75;">
+                                ASSIGNED
+                            </span>
+                            {% else %}
+                            <span style="font-size:.68rem;font-weight:700;padding:.2rem .55rem;
+                                         border-radius:999px;background:#f3f4f6;color:#374151;">
+                                PICKED UP
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div style="font-size:.83rem;color:#374151;margin-bottom:.25rem;">
+                            <strong>Buyer:</strong> {{ order.buyer.username }}
+                            {% if order.buyer.phone %}
+                            · <a href="tel:{{ order.buyer.phone }}"
+                                 style="color:#059669;text-decoration:none;">
+                                {{ order.buyer.phone }}
+                              </a>
+                            {% endif %}
+                        </div>
+
+                        <div style="font-size:.83rem;color:#374151;margin-bottom:.5rem;">
+                            <strong>Deliver to:</strong>
+                            {{ order.delivery_address }}, {{ order.delivery_city }}
+                            {% if order.delivery_zip %}, {{ order.delivery_zip }}{% endif %}
+                        </div>
+
+                        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+                            <a href="https://www.google.com/maps/search/?api=1&query={{ maps_query }}"
+                               target="_blank" rel="noopener"
+                               style="display:inline-flex;align-items:center;gap:.35rem;
+                                      font-size:.75rem;font-weight:600;color:#1d4ed8;
+                                      background:#eff6ff;border:1px solid #bfdbfe;
+                                      padding:.3rem .75rem;border-radius:6px;text-decoration:none;">
+                                🗺️ Open in Maps
+                            </a>
+                            <span style="font-size:.82rem;font-weight:700;color:#059669;">
+                                ₱{{ "%.2f"|format(order.total_amount) }} COD
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:.5rem;flex-shrink:0;">
                         {% if order.status == 'assigned' %}
                         <form method="POST" action="{{ url_for('orders.pickup_order', order_id=order.id) }}">
-                            <button type="submit" class="btn btn-sm btn-primary"
-                                onclick="return confirm('Confirm pickup of order {{ order.order_number }}?')">
-                                🏍️ Picked Up
+                            <button type="submit"
+                                    onclick="return confirm('Confirm pickup of {{ order.order_number }}?')"
+                                    style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;
+                                           padding:.5rem 1rem;font-size:.8rem;font-weight:700;
+                                           cursor:pointer;white-space:nowrap;width:100%;">
+                                🏍️ Mark Picked Up
                             </button>
                         </form>
                         {% elif order.status == 'shipped' %}
                         <form method="POST" action="{{ url_for('orders.deliver_order', order_id=order.id) }}">
-                            <button type="submit" class="btn btn-sm btn-success"
-                                onclick="return confirm('Confirm delivery and cash collection for {{ order.order_number }}?')">
-                                ✅ Delivered
+                            <button type="submit"
+                                    onclick="return confirm('Confirm delivery and cash collected for {{ order.order_number }}?')"
+                                    style="background:#059669;color:#fff;border:none;border-radius:8px;
+                                           padding:.5rem 1rem;font-size:.8rem;font-weight:700;
+                                           cursor:pointer;white-space:nowrap;width:100%;">
+                                ✅ Mark Delivered
                             </button>
                         </form>
                         {% endif %}
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}"
+                           style="display:block;text-align:center;background:#f3f4f6;color:#374151;
+                                  border:none;border-radius:8px;padding:.5rem 1rem;
+                                  font-size:.8rem;font-weight:600;text-decoration:none;">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:3rem;color:#9ca3af;">
+            <div style="font-size:2rem;margin-bottom:.75rem;">🏍️</div>
+            <p style="margin:0;font-size:.9rem;">No active deliveries assigned to you.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Delivery History ── #}
+    <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+                overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #f3f4f6;">
+            <span style="font-size:.9rem;font-weight:700;color:#111827;">Delivery History</span>
+            <span style="font-size:.75rem;color:#9ca3af;margin-left:.5rem;">Last 20</span>
+        </div>
+
+        {% if delivered_orders %}
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#fafafa;">
+                    <th style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                                letter-spacing:.6px;color:#6b7280;padding:.75rem 1.5rem;
+                                border-bottom:1px solid #f3f4f6;text-align:left;">Order</th>
+                    <th style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                                letter-spacing:.6px;color:#6b7280;padding:.75rem 1.5rem;
+                                border-bottom:1px solid #f3f4f6;text-align:left;">Buyer</th>
+                    <th style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                                letter-spacing:.6px;color:#6b7280;padding:.75rem 1.5rem;
+                                border-bottom:1px solid #f3f4f6;text-align:left;">Delivered</th>
+                    <th style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                                letter-spacing:.6px;color:#6b7280;padding:.75rem 1.5rem;
+                                border-bottom:1px solid #f3f4f6;text-align:right;">COD Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in delivered_orders %}
+                <tr style="border-bottom:1px solid #f9fafb;">
+                    <td style="padding:.85rem 1.5rem;font-size:.85rem;">
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}"
+                           style="font-weight:600;color:#111827;text-decoration:none;">
+                            {{ order.order_number }}
+                        </a>
+                    </td>
+                    <td style="padding:.85rem 1.5rem;font-size:.85rem;color:#374151;">
+                        {{ order.buyer.username }}
+                    </td>
+                    <td style="padding:.85rem 1.5rem;font-size:.78rem;color:#9ca3af;">
+                        {{ order.delivered_at.strftime('%b %d, %Y %H:%M') if order.delivered_at else '—' }}
+                    </td>
+                    <td style="padding:.85rem 1.5rem;font-size:.85rem;font-weight:700;
+                                color:#059669;text-align:right;">
+                        ₱{{ "%.2f"|format(order.total_amount) }}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <div class="text-center text-muted py-5">
-            <p class="mb-0">No active deliveries assigned to you.</p>
+        <div style="text-align:center;padding:3rem;color:#9ca3af;">
+            <p style="margin:0;font-size:.9rem;">No completed deliveries yet.</p>
         </div>
         {% endif %}
     </div>
+
 </div>
 {% endblock %}

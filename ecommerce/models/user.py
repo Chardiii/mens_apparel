@@ -69,6 +69,7 @@ class User(UserMixin, db.Model):
     deliveries = db.relationship('Order', backref='rider', lazy='dynamic', foreign_keys='Order.rider_id')
     reviews = db.relationship('Review', backref='reviewer', lazy='dynamic', foreign_keys='Review.reviewer_id')
     wishlists = db.relationship('Wishlist', backref='user', lazy='dynamic', foreign_keys='Wishlist.user_id')
+    cart_items = db.relationship('CartItem', backref='user', lazy='dynamic', foreign_keys='CartItem.user_id')
     
     def set_password(self, password):
         """Set password hash"""

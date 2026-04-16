@@ -24,19 +24,37 @@ def dashboard():
         return redirect(url_for('products.seller_dashboard'))
 
     if current_user.is_rider():
+        from sqlalchemy import func
+        from models import db
+
         active_orders = Order.query.filter(
             Order.rider_id == current_user.id,
             Order.status.in_([OrderStatus.ASSIGNED.value, OrderStatus.SHIPPED.value])
         ).order_by(Order.created_at.desc()).all()
 
-        completed = Order.query.filter_by(
+        delivered_orders = Order.query.filter_by(
             rider_id=current_user.id,
             status=OrderStatus.DELIVERED.value
-        ).count()
+        ).order_by(Order.delivered_at.desc()).all()
+
+        completed   = len(delivered_orders)
+        earnings    = sum(o.total_amount for o in delivered_orders)
+
+        # This week vs last week
+        from datetime import date, timedelta
+        today     = date.today()
+        week_ago  = today - timedelta(days=7)
+        this_week = sum(
+            o.total_amount for o in delivered_orders
+            if o.delivered_at and o.delivered_at.date() >= week_ago
+        )
 
         return render_template('rider_dashboard.html',
                                active_orders=active_orders,
-                               completed=completed)
+                               delivered_orders=delivered_orders[:20],
+                               completed=completed,
+                               earnings=round(earnings, 2),
+                               this_week=round(this_week, 2))
 
     all_orders = Order.query.filter_by(buyer_id=current_user.id)
     # Buyers go to index, not a separate dashboard

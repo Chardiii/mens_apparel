@@ -11,11 +11,12 @@ from .payment import Payment, PaymentStatus
 from .review import Review
 from .wishlist import Wishlist
 from .message import Message
+from .cart import CartItem
 
 __all__ = [
     'db', 'User', 'UserRole',
     'Product', 'ProductImage', 'ProductVariant',
     'Order', 'OrderItem', 'OrderStatus',
     'Payment', 'PaymentStatus',
-    'Review', 'Wishlist', 'Message',
+    'Review', 'Wishlist', 'Message', 'CartItem',
 ]

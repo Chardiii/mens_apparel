@@ -1,9 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from models import db, Product, ProductVariant, Order, OrderItem, Payment, PaymentStatus, OrderStatus
+from models import db, Product, ProductVariant, Order, OrderItem, Payment, PaymentStatus, OrderStatus, CartItem
 from datetime import datetime
 import uuid
-import json
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/orders')
 
@@ -46,49 +45,97 @@ def send_order_status_email(order):
 
 # ── Cart helpers ──────────────────────────────────────────────────────────────
 
-def get_cart():
-    return session.get('cart', {})  # {product_id_str: quantity}
+def _parse_cart_key(key):
+    parts = str(key).split(':')
+    pid = int(parts[0])
+    vid = int(parts[1]) if len(parts) > 1 and parts[1] != '0' else None
+    return pid, vid
 
-def save_cart(cart):
-    session['cart'] = cart
+
+def _db_cart_items(user_id):
+    """Return CartItem rows for a user, skipping inactive/deleted products."""
+    return [
+        item for item in
+        CartItem.query.filter_by(user_id=user_id)
+                      .order_by(CartItem.added_at.asc()).all()
+        if item.product and item.product.is_active
+    ]
+
+
+def _session_cart_items():
+    """Return cart-item dicts from the session (guest users)."""
+    raw = session.get('cart', {})
+    items = []
+    for cart_key, qty in raw.items():
+        pid, vid = _parse_cart_key(cart_key)
+        product = Product.query.get(pid)
+        if not product or not product.is_active:
+            continue
+        variant = ProductVariant.query.get(vid) if vid else None
+        items.append({'cart_key': cart_key, 'product': product,
+                      'variant': variant, 'quantity': qty})
+    return items
+
+
+def merge_session_cart_to_db(user_id):
+    """Called on login: move any session cart items into the DB cart."""
+    raw = session.pop('cart', {})
+    if not raw:
+        return
+    for cart_key, qty in raw.items():
+        pid, vid = _parse_cart_key(cart_key)
+        product = Product.query.get(pid)
+        if not product or not product.is_active:
+            continue
+        existing = CartItem.query.filter_by(
+            user_id=user_id, product_id=pid, variant_id=vid
+        ).first()
+        if existing:
+            avail = existing.variant.stock if existing.variant else existing.product.stock
+            existing.quantity = min(existing.quantity + qty, avail)
+        else:
+            variant = ProductVariant.query.get(vid) if vid else None
+            avail = variant.stock if variant else product.stock
+            db.session.add(CartItem(
+                user_id=user_id, product_id=pid,
+                variant_id=vid, quantity=min(qty, avail)
+            ))
+    db.session.commit()
     session.modified = True
+
+
+def get_cart_count():
+    """Total item count for the navbar badge."""
+    if current_user.is_authenticated:
+        return db.session.query(
+            db.func.sum(CartItem.quantity)
+        ).filter_by(user_id=current_user.id).scalar() or 0
+    return sum(session.get('cart', {}).values())
 
 
 # ── Cart routes ───────────────────────────────────────────────────────────────
 
 @orders_bp.route('/cart')
 def cart():
-    cart = get_cart()
-    cart_items = []
-    total = 0.0
+    if current_user.is_authenticated:
+        rows = _db_cart_items(current_user.id)
+        cart_items = [{
+            'cart_key': r.cart_key,
+            'product':  r.product,
+            'variant':  r.variant,
+            'quantity': r.quantity,
+            'price':    r.price,
+            'subtotal': r.subtotal,
+        } for r in rows]
+    else:
+        cart_items = []
+        for item in _session_cart_items():
+            price    = item['variant'].effective_price if item['variant'] else item['product'].price
+            subtotal = round(price * item['quantity'], 2)
+            cart_items.append({**item, 'price': price, 'subtotal': subtotal})
 
-    for cart_key, qty in cart.items():
-        pid, vid = _parse_cart_key(cart_key)
-        product = Product.query.get(pid)
-        if not product or not product.is_active:
-            continue
-        variant = ProductVariant.query.get(vid) if vid else None
-        price   = variant.effective_price if variant else product.price
-        subtotal = price * qty
-        total   += subtotal
-        cart_items.append({
-            'cart_key': cart_key,
-            'product': product,
-            'variant': variant,
-            'quantity': qty,
-            'price': price,
-            'subtotal': subtotal
-        })
-
+    total = round(sum(i['subtotal'] for i in cart_items), 2)
     return render_template('cart.html', cart_items=cart_items, total=total)
-
-
-def _parse_cart_key(key):
-    """Return (product_id, variant_id_or_None) from a cart key."""
-    parts = str(key).split(':')
-    pid = int(parts[0])
-    vid = int(parts[1]) if len(parts) > 1 and parts[1] != '0' else None
-    return pid, vid
 
 
 @orders_bp.route('/add-to-cart/<int:product_id>', methods=['POST'])
@@ -100,39 +147,51 @@ def add_to_cart(product_id):
     if quantity < 1:
         quantity = 1
 
-    # Require variant selection if product has variants
     if product.variants.count() > 0 and not variant_id:
         flash('Please select a size before adding to cart.', 'warning')
         return redirect(url_for('products.view_product', product_id=product_id))
 
-    if variant_id:
-        variant = ProductVariant.query.get_or_404(variant_id)
-        avail = variant.stock
-    else:
-        avail = product.stock
+    variant = ProductVariant.query.get(variant_id) if variant_id else None
+    avail   = variant.stock if variant else product.stock
 
     if avail == 0:
         flash('This item is out of stock.', 'warning')
         return redirect(url_for('products.view_product', product_id=product_id))
 
-    if quantity > avail:
-        flash(f'Only {avail} units available.', 'warning')
-        quantity = avail
+    quantity = min(quantity, avail)
 
-    cart = get_cart()
-
-    # Enforce single-seller cart
-    if cart:
-        existing_key = next(iter(cart))
-        existing_pid = int(existing_key.split(':')[0])
-        existing_product = Product.query.get(existing_pid)
-        if existing_product and existing_product.seller_id != product.seller_id:
+    if current_user.is_authenticated:
+        # Enforce single-seller cart
+        first = CartItem.query.filter_by(user_id=current_user.id).first()
+        if first and first.product.seller_id != product.seller_id:
             flash('Your cart contains items from a different seller. Clear your cart first.', 'warning')
             return redirect(url_for('products.view_product', product_id=product_id))
 
-    cart_key = f"{product_id}:{variant_id or 0}"
-    cart[cart_key] = cart.get(cart_key, 0) + quantity
-    save_cart(cart)
+        existing = CartItem.query.filter_by(
+            user_id=current_user.id, product_id=product_id, variant_id=variant_id
+        ).first()
+        if existing:
+            existing.quantity = min(existing.quantity + quantity, avail)
+        else:
+            db.session.add(CartItem(
+                user_id=current_user.id, product_id=product_id,
+                variant_id=variant_id, quantity=quantity
+            ))
+        db.session.commit()
+    else:
+        # Guest: session cart
+        cart = session.get('cart', {})
+        if cart:
+            existing_key = next(iter(cart))
+            existing_pid = int(existing_key.split(':')[0])
+            existing_product = Product.query.get(existing_pid)
+            if existing_product and existing_product.seller_id != product.seller_id:
+                flash('Your cart contains items from a different seller. Clear your cart first.', 'warning')
+                return redirect(url_for('products.view_product', product_id=product_id))
+        key = f"{product_id}:{variant_id or 0}"
+        cart[key] = min(cart.get(key, 0) + quantity, avail)
+        session['cart'] = cart
+        session.modified = True
 
     flash(f'{product.name} added to cart!', 'success')
     return redirect(url_for('products.view_product', product_id=product_id))
@@ -140,9 +199,17 @@ def add_to_cart(product_id):
 
 @orders_bp.route('/remove-from-cart/<path:cart_key>', methods=['POST'])
 def remove_from_cart(cart_key):
-    cart = get_cart()
-    cart.pop(cart_key, None)
-    save_cart(cart)
+    if current_user.is_authenticated:
+        pid, vid = _parse_cart_key(cart_key)
+        CartItem.query.filter_by(
+            user_id=current_user.id, product_id=pid, variant_id=vid
+        ).delete()
+        db.session.commit()
+    else:
+        cart = session.get('cart', {})
+        cart.pop(cart_key, None)
+        session['cart'] = cart
+        session.modified = True
     flash('Item removed from cart.', 'info')
     return redirect(url_for('orders.cart'))
 
@@ -150,21 +217,43 @@ def remove_from_cart(cart_key):
 @orders_bp.route('/update-cart/<path:cart_key>', methods=['POST'])
 def update_cart(cart_key):
     quantity = request.form.get('quantity', 1, type=int)
-    cart = get_cart()
     pid, vid = _parse_cart_key(cart_key)
 
-    if quantity < 1:
-        cart.pop(cart_key, None)
-    else:
-        if vid:
-            variant = ProductVariant.query.get(vid)
-            max_stock = variant.stock if variant else 0
-        else:
-            product = Product.query.get(pid)
-            max_stock = product.stock if product else 0
-        cart[cart_key] = min(quantity, max_stock)
+    variant = ProductVariant.query.get(vid) if vid else None
+    product = Product.query.get(pid)
+    max_stock = (variant.stock if variant else product.stock) if product else 0
 
-    save_cart(cart)
+    if current_user.is_authenticated:
+        item = CartItem.query.filter_by(
+            user_id=current_user.id, product_id=pid, variant_id=vid
+        ).first()
+        if item:
+            if quantity < 1:
+                db.session.delete(item)
+            else:
+                item.quantity = min(quantity, max_stock)
+            db.session.commit()
+    else:
+        cart = session.get('cart', {})
+        if quantity < 1:
+            cart.pop(cart_key, None)
+        else:
+            cart[cart_key] = min(quantity, max_stock)
+        session['cart'] = cart
+        session.modified = True
+
+    return redirect(url_for('orders.cart'))
+
+
+@orders_bp.route('/clear-cart', methods=['POST'])
+def clear_cart():
+    if current_user.is_authenticated:
+        CartItem.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+    else:
+        session.pop('cart', None)
+        session.modified = True
+    flash('Cart cleared.', 'info')
     return redirect(url_for('orders.cart'))
 
 
@@ -201,13 +290,6 @@ def buy_now(product_id):
     return redirect(url_for('orders.checkout', mode='buy_now'))
 
 
-@orders_bp.route('/clear-cart', methods=['POST'])
-def clear_cart():
-    save_cart({})
-    flash('Cart cleared.', 'info')
-    return redirect(url_for('orders.cart'))
-
-
 @orders_bp.route('/cancel-buy-now', methods=['POST'])
 @login_required
 def cancel_buy_now():
@@ -242,27 +324,24 @@ def checkout():
                                   'quantity': qty, 'price': price, 'subtotal': subtotal,
                                   'cart_key': cart_key})
         else:
-            cart = get_cart()
-            for cart_key, qty in cart.items():
-                pid, vid = _parse_cart_key(cart_key)
-                product = Product.query.get(pid)
-                variant = ProductVariant.query.get(vid) if vid else None
-                if product and product.is_active:
-                    qty = qty_overrides.get(cart_key, qty) if qty_overrides else qty
-                    avail = variant.stock if variant else product.stock
-                    qty = max(1, min(int(qty), avail))
-                    price = variant.effective_price if variant else product.price
-                    subtotal = price * qty
-                    total += subtotal
-                    items.append({'product': product, 'variant': variant,
-                                  'quantity': qty, 'price': price, 'subtotal': subtotal,
-                                  'cart_key': cart_key})
+            rows = _db_cart_items(current_user.id)
+            for row in rows:
+                cart_key = row.cart_key
+                qty = qty_overrides.get(cart_key, row.quantity) if qty_overrides else row.quantity
+                avail = row.variant.stock if row.variant else row.product.stock
+                qty = max(1, min(int(qty), avail))
+                price = row.variant.effective_price if row.variant else row.product.price
+                subtotal = round(price * qty, 2)
+                total += subtotal
+                items.append({'product': row.product, 'variant': row.variant,
+                              'quantity': qty, 'price': price, 'subtotal': subtotal,
+                              'cart_key': cart_key})
         return items, round(total, 2)
 
     if mode == 'buy_now' and not session.get('buy_now_item'):
         flash('Nothing to checkout.', 'warning')
         return redirect(url_for('products.list_products'))
-    if mode == 'cart' and not get_cart():
+    if mode == 'cart' and not _db_cart_items(current_user.id):
         flash('Your cart is empty.', 'warning')
         return redirect(url_for('orders.cart'))
 
@@ -345,7 +424,8 @@ def checkout():
         if mode == 'buy_now':
             session.pop('buy_now_item', None)
         else:
-            save_cart({})
+            CartItem.query.filter_by(user_id=current_user.id).delete()
+            db.session.commit()
 
         send_order_status_email(order)
         flash('Order placed! Waiting for seller to verify.', 'success')

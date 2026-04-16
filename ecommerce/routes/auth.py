@@ -278,6 +278,9 @@ def login():
                 flash('Your account is pending admin approval. Please wait for verification.', 'warning')
                 return redirect(url_for('auth.login'))
             login_user(user, remember=True)
+            # Merge any guest session cart into the DB cart
+            from routes.orders import merge_session_cart_to_db
+            merge_session_cart_to_db(user.id)
             flash(f'Welcome back, {user.username}!', 'success')
             return redirect(url_for('main.dashboard'))
 

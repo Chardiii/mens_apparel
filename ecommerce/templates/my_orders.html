@@ -1,60 +1,187 @@
 {% extends "base.html" %}
-
-{% block title %}My Orders - Mode S7vn{% endblock %}
+{% block title %}My Orders — Mode S7vn{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>My Orders</h2>
-    </div>
-</div>
 
-<div class="table-responsive">
-    <table class="table table-striped align-middle">
-        <thead>
-            <tr>
-                <th>Order #</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Payment</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            {% set s = order.status %}
-            <tr>
-                <td>{{ order.order_number }}</td>
-                <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
-                <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
-                <td>
-                    <span class="badge bg-{{
-                        'warning text-dark' if s == 'pending' else
-                        'primary' if s == 'verified' else
-                        'info text-dark' if s == 'assigned' else
-                        'secondary' if s == 'shipped' else
-                        'success' if s == 'delivered' else
-                        'danger'
-                    }}">{{ s.upper() }}</span>
-                </td>
-                <td>
-                    <span class="badge bg-{{ 'success' if order.payment and order.payment.status == 'collected' else 'warning text-dark' }}">
-                        💵 {{ 'Collected' if order.payment and order.payment.status == 'collected' else 'COD Pending' }}
-                    </span>
-                </td>
-                <td>
-                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">
-                    No orders yet. <a href="{{ url_for('products.list_products') }}">Start shopping</a>
-                </td>
-            </tr>
+<div style="max-width:780px;margin:0 auto;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+        <h2 style="margin:0;font-weight:800;color:#111827;">My Orders</h2>
+        <a href="{{ url_for('products.list_products') }}"
+           style="font-size:.83rem;font-weight:600;color:#6b7280;text-decoration:none;">
+            + Continue Shopping
+        </a>
+    </div>
+
+    {% if orders %}
+
+    {% set step_order = ['pending','verified','assigned','shipped','delivered'] %}
+
+    {% for order in orders %}
+    {% set s = order.status %}
+    {% set cancelled = s == 'cancelled' %}
+    {% set current_idx = step_order.index(s) if s in step_order else 0 %}
+
+    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;
+                margin-bottom:1rem;overflow:hidden;
+                box-shadow:0 1px 4px rgba(0,0,0,.05);
+                transition:box-shadow .2s;"
+         onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'"
+         onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.05)'">
+
+        {# Header row #}
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:.9rem 1.25rem;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;gap:.5rem;">
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <span style="font-weight:700;color:#111827;font-size:.9rem;">
+                    {{ order.order_number }}
+                </span>
+                <span style="font-size:.75rem;color:#9ca3af;">
+                    {{ order.created_at.strftime('%b %d, %Y') }}
+                </span>
+                <span style="font-size:.78rem;font-weight:700;color:#374151;">
+                    ₱{{ "%.2f"|format(order.total_amount) }}
+                </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:.6rem;">
+                {% if cancelled %}
+                <span style="font-size:.72rem;font-weight:700;padding:.25rem .65rem;
+                             border-radius:999px;background:#fee2e2;color:#991b1b;">
+                    CANCELLED
+                </span>
+                {% elif s == 'delivered' %}
+                <span style="font-size:.72rem;font-weight:700;padding:.25rem .65rem;
+                             border-radius:999px;background:#d1fae5;color:#065f46;">
+                    DELIVERED
+                </span>
+                {% else %}
+                <span style="font-size:.72rem;font-weight:700;padding:.25rem .65rem;
+                             border-radius:999px;background:#fef3c7;color:#92400e;">
+                    IN PROGRESS
+                </span>
+                {% endif %}
+                <a href="{{ url_for('orders.order_detail', order_id=order.id) }}"
+                   style="font-size:.78rem;font-weight:600;padding:.3rem .85rem;
+                          border-radius:6px;background:#111827;color:#fff;
+                          text-decoration:none;">
+                    Track →
+                </a>
+            </div>
+        </div>
+
+        {# Items preview #}
+        <div style="padding:.75rem 1.25rem;display:flex;align-items:center;
+                    gap:.75rem;border-bottom:1px solid #f9fafb;flex-wrap:wrap;">
+            {% set item_list = order.items.all() %}
+            {% for item in item_list[:3] %}
+            {% set primary = item.product.images.filter_by(is_primary=True).first() %}
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                {% if primary %}
+                <img src="{{ url_for('static', filename='uploads/' ~ primary.image_url) }}"
+                     style="width:36px;height:36px;object-fit:cover;border-radius:6px;
+                            border:1px solid #e5e7eb;flex-shrink:0;">
+                {% else %}
+                <div style="width:36px;height:36px;background:#f3f4f6;border-radius:6px;
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:.9rem;flex-shrink:0;">📦</div>
+                {% endif %}
+                <div>
+                    <div style="font-size:.8rem;font-weight:600;color:#111827;
+                                max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {{ item.product.name }}
+                    </div>
+                    <div style="font-size:.7rem;color:#9ca3af;">
+                        {% if item.variant_size %}{{ item.variant_size }}{% endif %}
+                        {% if item.variant_color %} · {{ item.variant_color }}{% endif %}
+                        × {{ item.quantity }}
+                    </div>
+                </div>
+            </div>
+            {% if not loop.last %}<span style="color:#e5e7eb;">·</span>{% endif %}
             {% endfor %}
-        </tbody>
-    </table>
+            {% if item_list|length > 3 %}
+            <span style="font-size:.75rem;color:#9ca3af;">+{{ item_list|length - 3 }} more</span>
+            {% endif %}
+        </div>
+
+        {# Mini progress bar #}
+        {% if not cancelled %}
+        <div style="padding:.85rem 1.25rem;">
+            <div style="display:flex;align-items:center;position:relative;">
+
+                {# Background track #}
+                <div style="position:absolute;top:9px;left:9px;right:9px;height:2px;
+                            background:#e5e7eb;z-index:0;"></div>
+                {# Progress fill #}
+                <div style="position:absolute;top:9px;left:9px;height:2px;z-index:1;
+                            background:{{ '#059669' if s == 'delivered' else '#f59e0b' }};
+                            width:{{ (current_idx / 4 * 100)|round }}%;"></div>
+
+                {% set mini_steps = [
+                    ('pending',   '🛒'),
+                    ('verified',  '✅'),
+                    ('assigned',  '🏍️'),
+                    ('shipped',   '📦'),
+                    ('delivered', '🎉'),
+                ] %}
+
+                {% for key, icon in mini_steps %}
+                {% set idx = loop.index0 %}
+                {% set done   = idx < current_idx %}
+                {% set active = idx == current_idx %}
+
+                <div style="flex:1;display:flex;flex-direction:column;
+                            align-items:center;position:relative;z-index:2;">
+                    <div style="width:20px;height:20px;border-radius:50%;
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:.6rem;
+                                border:2px solid {{ '#059669' if done or active else '#e5e7eb' }};
+                                background:{{ '#059669' if done else ('#fffbeb' if active else '#fff') }};">
+                        {% if done %}
+                        <span style="color:#fff;font-size:.55rem;font-weight:900;">✓</span>
+                        {% else %}
+                        {{ icon }}
+                        {% endif %}
+                    </div>
+                    <div style="font-size:.6rem;margin-top:.3rem;
+                                color:{{ '#059669' if done else ('#111827' if active else '#d1d5db') }};
+                                font-weight:{{ '700' if active else '400' }};
+                                text-align:center;line-height:1.2;max-width:52px;">
+                        {{ key.capitalize() }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div style="padding:.75rem 1.25rem;">
+            <p style="margin:0;font-size:.78rem;color:#dc2626;">
+                This order was cancelled.
+                {% if order.payment and order.payment.status != 'collected' %}
+                No payment was collected.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div style="text-align:center;padding:4rem 2rem;background:#fff;
+                border-radius:14px;border:1px solid #e5e7eb;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🛍️</div>
+        <p style="color:#6b7280;font-size:1rem;margin-bottom:1.25rem;">
+            You haven't placed any orders yet.
+        </p>
+        <a href="{{ url_for('products.list_products') }}"
+           style="background:#111827;color:#fff;padding:.7rem 1.75rem;
+                  border-radius:8px;font-weight:700;font-size:.88rem;
+                  text-decoration:none;letter-spacing:.5px;">
+            Start Shopping
+        </a>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

@@ -34,7 +34,9 @@
                         {% for img in images %}
                         <div class="carousel-item h-100 {% if loop.first %}active{% endif %}">
                             <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
-                                 class="pd-main-img" alt="{{ product.name }}">
+                                 class="pd-main-img pd-zoomable"
+                                 alt="{{ product.name }}"
+                                 onclick="openLightbox('{{ url_for('static', filename='uploads/' ~ img.image_url) }}')">
                         </div>
                         {% endfor %}
                     </div>
@@ -47,7 +49,9 @@
                 </div>
                 {% else %}
                 <img src="{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}"
-                     class="pd-main-img" alt="{{ product.name }}">
+                     class="pd-main-img pd-zoomable"
+                     alt="{{ product.name }}"
+                     onclick="openLightbox('{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}')">
                 {% endif %}
             {% else %}
             <div class="pd-img-placeholder">
@@ -56,6 +60,12 @@
             </div>
             {% endif %}
         </div>
+
+        {# Zoom hint #}
+        {% if images %}
+        <p style="font-size:.72rem;color:#aaa;text-align:center;margin:-.4rem 0 .6rem;
+                  letter-spacing:.3px;">🔍 Click image to zoom</p>
+        {% endif %}
 
         {# Thumbnail strip #}
         {% if images|length > 1 %}
@@ -787,6 +797,39 @@
 .pd-review-stars { display: flex; gap: 1px; }
 .pd-review-comment { font-size: .85rem; color: #555; line-height: 1.6; margin: 0; }
 .pd-no-reviews { font-size: .85rem; color: #aaa; text-align: center; padding: 1rem 0; margin: 0; }
+
+/* ── Zoom ── */
+.pd-zoomable { cursor: zoom-in; transition: opacity .15s; }
+.pd-zoomable:hover { opacity: .9; }
+#pd-lightbox {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.93); z-index: 9999;
+    align-items: center; justify-content: center;
+    cursor: zoom-out;
+}
+#pd-lightbox.open { display: flex; }
+#pd-lightbox-img {
+    max-width: 92vw; max-height: 92vh;
+    object-fit: contain; border-radius: 6px;
+    box-shadow: 0 8px 48px rgba(0,0,0,.6);
+    cursor: default; user-select: none;
+    transform-origin: center center;
+    transition: transform .25s ease;
+}
+#pd-lb-close {
+    position: fixed; top: 1.25rem; right: 1.5rem;
+    color: #fff; font-size: 2rem; line-height: 1;
+    cursor: pointer; background: none; border: none;
+    opacity: .75; z-index: 10000;
+}
+#pd-lb-close:hover { opacity: 1; }
+#pd-lb-hint {
+    position: fixed; bottom: 1.25rem; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,.45); font-size: .73rem;
+    letter-spacing: .5px; pointer-events: none;
+    white-space: nowrap;
+}
 </style>
 
 <script>
@@ -909,6 +952,50 @@ if (pdCarousel) {
         document.querySelectorAll('.pd-thumb').forEach((t, i) => t.classList.toggle('active', i === e.to))
     })
 }
+
+// ── Lightbox ──
+const lb    = document.getElementById('pd-lightbox')
+const lbImg = document.getElementById('pd-lightbox-img')
+let lbScale = 1
+
+function openLightbox(src) {
+    lbImg.src = src
+    lbScale = 1
+    lbImg.style.transform = 'scale(1)'
+    lb.classList.add('open')
+    document.body.style.overflow = 'hidden'
+}
+
+function closeLightbox() {
+    lb.classList.remove('open')
+    document.body.style.overflow = ''
+}
+
+// Close on backdrop click
+lb.addEventListener('click', e => { if (e.target === lb) closeLightbox() })
+
+// Close on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox() })
+
+// Scroll to zoom
+lb.addEventListener('wheel', e => {
+    e.preventDefault()
+    lbScale = Math.min(4, Math.max(1, lbScale - e.deltaY * 0.001))
+    lbImg.style.transform = `scale(${lbScale})`
+}, { passive: false })
+
+// Double-click to reset zoom
+lbImg.addEventListener('dblclick', () => {
+    lbScale = lbScale > 1 ? 1 : 2
+    lbImg.style.transform = `scale(${lbScale})`
+})
 </script>
+
+{# ── Lightbox overlay ── #}
+<div id="pd-lightbox">
+    <button id="pd-lb-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+    <img id="pd-lightbox-img" src="" alt="Zoomed product image">
+    <span id="pd-lb-hint">Scroll to zoom &nbsp;&middot;&nbsp; Double-click to reset &nbsp;&middot;&nbsp; Esc to close</span>
+</div>
 
 {% endblock %}
