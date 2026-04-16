@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/psgc_address.html" import psgc_address %}
 
 {% block title %}Register - Mode S7vn{% endblock %}
 
@@ -12,7 +13,7 @@
             <div class="card-body">
                 <form method="POST" action="{{ url_for('auth.register') }}" enctype="multipart/form-data" data-validate>
 
-                    {# ── Step 1: Choose role ── #}
+                    {# ── Role selector ── #}
                     <div class="mb-4">
                         <label class="form-label fw-bold">I want to register as</label>
                         <div class="d-flex gap-2">
@@ -20,12 +21,10 @@
                             <label class="btn btn-outline-primary flex-fill text-center" for="role_buyer">
                                 🛍️<br><small>Buyer</small>
                             </label>
-
                             <input type="radio" class="btn-check" name="role" id="role_seller" value="seller">
                             <label class="btn btn-outline-success flex-fill text-center" for="role_seller">
                                 🏪<br><small>Seller</small>
                             </label>
-
                             <input type="radio" class="btn-check" name="role" id="role_rider" value="rider">
                             <label class="btn btn-outline-warning flex-fill text-center" for="role_rider">
                                 🏍️<br><small>Rider</small>
@@ -35,7 +34,7 @@
 
                     <hr>
 
-                    {# ── Basic info (all roles) ── #}
+                    {# ── Basic info ── #}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">First Name</label>
@@ -53,30 +52,56 @@
                     <div class="mb-3">
                         <label class="form-label">Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" name="email" required>
+                        <div class="form-text">A verification link will be sent to this email.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="tel" class="form-control" name="phone">
                     </div>
+
+                    {# ── Password ── #}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" name="password"
-                                   id="password-field" required>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="password"
+                                       id="password-field" required>
+                                <button type="button" class="btn btn-outline-secondary toggle-pw"
+                                        data-target="password-field">👁</button>
+                            </div>
                             <div class="progress mt-1" style="height:6px;">
                                 <div id="pw-strength-bar" class="progress-bar" style="width:0%;"></div>
                             </div>
                             <small id="pw-strength-text" class="text-muted"></small>
+                            <div class="mt-2 p-2 bg-light rounded small text-muted">
+                                <strong>Password must contain:</strong>
+                                <ul class="mb-0 ps-3 mt-1">
+                                    <li id="req-len">At least 8 characters</li>
+                                    <li id="req-upper">At least one uppercase letter (A–Z)</li>
+                                    <li id="req-num">At least one number (0–9)</li>
+                                    <li id="req-special">At least one special character (!@#$...)</li>
+                                </ul>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" name="confirm_password" required>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="confirm_password"
+                                       id="confirm-pw-field" required>
+                                <button type="button" class="btn btn-outline-secondary toggle-pw"
+                                        data-target="confirm-pw-field">👁</button>
+                            </div>
                         </div>
                     </div>
 
                     <hr>
 
-                    {# ── Valid ID (all roles) ── #}
+                    {# ── PSGC Address ── #}
+                    {{ psgc_address() }}
+
+                    <hr>
+
+                    {# ── Valid ID ── #}
                     <div class="mb-3">
                         <label class="form-label fw-bold">
                             Valid ID <span class="text-danger">*</span>
@@ -85,7 +110,7 @@
                         <input type="file" class="form-control" name="valid_id" accept="image/*,.pdf" required>
                     </div>
 
-                    {# ── Seller-only fields ── #}
+                    {# ── Seller fields ── #}
                     <div id="seller_fields" style="display:none;">
                         <hr>
                         <p class="fw-bold text-success mb-3">🏪 Seller Information</p>
@@ -108,7 +133,7 @@
                         </div>
                     </div>
 
-                    {# ── Rider-only fields ── #}
+                    {# ── Rider fields ── #}
                     <div id="rider_fields" style="display:none;">
                         <hr>
                         <p class="fw-bold text-warning mb-3">🏍️ Rider Information</p>
@@ -140,8 +165,8 @@
                     </div>
 
                     <div class="alert alert-info small mt-3 mb-3">
-                        <strong>Note:</strong> Your account will be reviewed by our admin team before activation.
-                        This usually takes 1–2 business days.
+                        <strong>Note:</strong> After verifying your email, your account will be reviewed
+                        by our admin team before activation (1–2 business days).
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Submit Registration</button>
@@ -155,10 +180,10 @@
 </div>
 
 <script>
+// Role toggle
 const roleInputs = document.querySelectorAll('input[name="role"]')
-const sellerFields = document.getElementById('seller_fields')
-const riderFields  = document.getElementById('rider_fields')
-
+const sellerFields   = document.getElementById('seller_fields')
+const riderFields    = document.getElementById('rider_fields')
 const shopName       = document.getElementById('shop_name')
 const businessPermit = document.getElementById('business_permit')
 const driversLicense = document.getElementById('drivers_license')
@@ -166,17 +191,13 @@ const plateNumber    = document.getElementById('plate_number')
 
 function updateFields() {
     const role = document.querySelector('input[name="role"]:checked').value
-
     sellerFields.style.display = role === 'seller' ? 'block' : 'none'
     riderFields.style.display  = role === 'rider'  ? 'block' : 'none'
-
-    // Toggle required attributes
     shopName.required       = role === 'seller'
     businessPermit.required = role === 'seller'
     driversLicense.required = role === 'rider'
     plateNumber.required    = role === 'rider'
 }
-
 roleInputs.forEach(r => r.addEventListener('change', updateFields))
 updateFields()
 </script>

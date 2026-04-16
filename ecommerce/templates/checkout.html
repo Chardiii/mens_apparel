@@ -14,13 +14,13 @@
                     <div class="mb-3">
                         <label class="form-label">Street Address</label>
                         <textarea class="form-control" name="delivery_address" rows="2" required
-                            placeholder="House/Unit No., Street, Barangay">{{ current_user.address or '' }}</textarea>
+                            placeholder="House/Unit No., Street, Barangay">{{ current_user.full_address or '' }}</textarea>
                     </div>
                     <div class="row">
                         <div class="col-md-7 mb-3">
                             <label class="form-label">City / Municipality</label>
                             <input type="text" class="form-control" name="delivery_city" required
-                                value="{{ current_user.city or '' }}">
+                                value="{{ current_user.municipality or current_user.city or '' }}">
                         </div>
                         <div class="col-md-5 mb-3">
                             <label class="form-label">ZIP Code</label>

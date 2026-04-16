@@ -41,13 +41,22 @@ class User(UserMixin, db.Model):
     
     # Profile
     profile_picture = db.Column(db.String(255))
-    address = db.Column(db.Text)
-    city = db.Column(db.String(80))
-    zip_code = db.Column(db.String(10))
+    street       = db.Column(db.String(255))   # house/unit/street
+    barangay     = db.Column(db.String(120))
+    municipality = db.Column(db.String(120))
+    province     = db.Column(db.String(120))
+    region       = db.Column(db.String(120))
+    address      = db.Column(db.Text)          # legacy / full address fallback
+    city         = db.Column(db.String(80))    # legacy
+    zip_code     = db.Column(db.String(10))
     
     # Account status
     is_active = db.Column(db.Boolean, default=False, nullable=False)  # requires admin approval
-    is_verified = db.Column(db.Boolean, default=False)
+    is_verified = db.Column(db.Boolean, default=False)  # admin approval flag
+    email_verified = db.Column(db.Boolean, default=False)  # email verification flag
+    email_verify_token = db.Column(db.String(100), unique=True)
+    reset_token = db.Column(db.String(100), unique=True)
+    reset_token_expiry = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -80,8 +89,13 @@ class User(UserMixin, db.Model):
         return self.role == UserRole.ADMIN.value
     
     def is_rider(self):
-        """Check if user is a rider"""
         return self.role == UserRole.RIDER.value
-    
+
+    @property
+    def full_address(self):
+        parts = [p for p in [self.street, self.barangay, self.municipality,
+                              self.province, self.region] if p]
+        return ', '.join(parts) if parts else (self.address or '')
+
     def __repr__(self):
         return f'<User {self.username}>'

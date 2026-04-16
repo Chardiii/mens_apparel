@@ -7,17 +7,27 @@
     <div class="col-md-5">
         <div class="card">
             <div class="card-header">
-                <h4>Login to Your Account</h4>
+                <h5 class="mb-0">Login to Your Account</h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('auth.login') }}" data-validate>
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required autofocus>
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="username" required autofocus>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                    <div class="mb-1">
+                        <label class="form-label">Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="password"
+                                   id="login-pw-field" required>
+                            <button type="button" class="btn btn-outline-secondary toggle-pw"
+                                    data-target="login-pw-field">👁</button>
+                        </div>
+                    </div>
+                    <div class="text-end mb-3">
+                        <a href="{{ url_for('auth.forgot_password') }}" class="small text-muted">
+                            Forgot password?
+                        </a>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Login</button>
                 </form>

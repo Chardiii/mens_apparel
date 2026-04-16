@@ -1,45 +1,87 @@
 {% extends "base.html" %}
+{% from "macros/psgc_address.html" import psgc_address %}
 
 {% block title %}Edit Profile - Mode S7vn{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-7">
         <div class="card">
-            <div class="card-header">
-                <h4>Edit Profile</h4>
-            </div>
+            <div class="card-header"><h5 class="mb-0">Edit Profile</h5></div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('auth.edit_profile') }}" data-validate>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" class="form-control" name="first_name"
+                                   value="{{ current_user.first_name or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" class="form-control" name="last_name"
+                                   value="{{ current_user.last_name or '' }}">
+                        </div>
+                    </div>
+
                     <div class="mb-3">
-                        <label for="first_name" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ current_user.first_name or '' }}">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-control" name="phone"
+                               value="{{ current_user.phone or '' }}">
+                    </div>
+
+                    <hr>
+
+                    {{ psgc_address(
+                        street       = current_user.street or '',
+                        barangay     = current_user.barangay or '',
+                        municipality = current_user.municipality or '',
+                        province     = current_user.province or '',
+                        region       = current_user.region or '',
+                        zip_code     = current_user.zip_code or ''
+                    ) }}
+
+                    {% if current_user.is_seller() %}
+                    <hr>
+                    <p class="fw-bold text-success mb-3">🏪 Shop Information</p>
+                    <div class="mb-3">
+                        <label class="form-label">Store Name</label>
+                        <input type="text" class="form-control" name="shop_name"
+                               value="{{ current_user.shop_name or '' }}">
                     </div>
                     <div class="mb-3">
-                        <label for="last_name" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ current_user.last_name or '' }}">
+                        <label class="form-label">Store Description</label>
+                        <textarea class="form-control" name="shop_description"
+                                  rows="2">{{ current_user.shop_description or '' }}</textarea>
                     </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">Phone</label>
-                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ current_user.phone or '' }}">
+                    {% endif %}
+
+                    {% if current_user.is_rider() %}
+                    <hr>
+                    <p class="fw-bold text-warning mb-3">🏍️ Rider Information</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Vehicle Type</label>
+                            <select class="form-select" name="vehicle_type">
+                                <option value="">— Select —</option>
+                                {% for v in ['Motorcycle','Bicycle','Car','Van'] %}
+                                <option value="{{ v }}" {{ 'selected' if current_user.vehicle_type == v }}>{{ v }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Plate Number</label>
+                            <input type="text" class="form-control" name="plate_number"
+                                   value="{{ current_user.plate_number or '' }}">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="address" class="form-label">Address</label>
-                        <textarea class="form-control" id="address" name="address">{{ current_user.address or '' }}</textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="city" class="form-label">City</label>
-                        <input type="text" class="form-control" id="city" name="city" value="{{ current_user.city or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="zip_code" class="form-label">ZIP Code</label>
-                        <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ current_user.zip_code or '' }}">
-                    </div>
+                    {% endif %}
+
                     <button type="submit" class="btn btn-primary w-100">Save Changes</button>
                 </form>
             </div>
             <div class="card-footer">
-                <a href="{{ url_for('auth.profile') }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary btn-sm">← Cancel</a>
             </div>
         </div>
     </div>

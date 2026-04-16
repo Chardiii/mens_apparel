@@ -3,56 +3,210 @@
 {% block title %}Profile - Mode S7vn{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row g-4">
+
+    {# ── Left: Profile info ── #}
     <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h4>User Profile</h4>
+
+        {# Basic info card #}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Account Information</h5>
+                <span class="badge bg-{{
+                    'primary' if current_user.role == 'buyer' else
+                    'success' if current_user.role == 'seller' else
+                    'warning text-dark' if current_user.role == 'rider' else
+                    'danger'
+                }}">{{ current_user.role.upper() }}</span>
             </div>
             <div class="card-body">
-                <p><strong>Username:</strong> {{ current_user.username }}</p>
-                <p><strong>Email:</strong> {{ current_user.email }}</p>
-                <p><strong>Name:</strong> {{ current_user.first_name }} {{ current_user.last_name }}</p>
-                <p><strong>Phone:</strong> {{ current_user.phone or 'N/A' }}</p>
-                <p><strong>Role:</strong> <span class="badge bg-primary">{{ current_user.role.upper() }}</span></p>
-                <p><strong>City:</strong> {{ current_user.city or 'N/A' }}</p>
-                
-                {% if current_user.is_seller() %}
-                    <hr>
-                    <h5>Shop Information</h5>
-                    <p><strong>Shop Name:</strong> {{ current_user.shop_name or 'N/A' }}</p>
-                    <p><strong>Shop Rating:</strong> {{ current_user.shop_rating }}/5.0</p>
-                {% endif %}
-                
-                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary">Edit Profile</a>
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="text-muted small">Full Name</label>
+                        <p class="mb-0 fw-bold">
+                            {{ current_user.first_name or '' }} {{ current_user.last_name or '' }}
+                            {% if not current_user.first_name and not current_user.last_name %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="text-muted small">Username</label>
+                        <p class="mb-0 fw-bold">{{ current_user.username }}</p>
+                    </div>
+
+                    {# Masked email #}
+                    <div class="col-md-6">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0 d-flex align-items-center gap-2">
+                            <span id="email-masked">
+                                {% set parts = current_user.email.split('@') %}
+                                {% set local = parts[0] %}
+                                {{ local[:2] }}{{ '•' * (local|length - 2) }}@{{ parts[1] }}
+                            </span>
+                            <span id="email-full" style="display:none;">{{ current_user.email }}</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
+                                    data-masked="email-masked" data-full="email-full">Show</button>
+                        </p>
+                    </div>
+
+                    {# Masked phone #}
+                    <div class="col-md-6">
+                        <label class="text-muted small">Phone</label>
+                        <p class="mb-0 d-flex align-items-center gap-2">
+                            {% if current_user.phone %}
+                            <span id="phone-masked">
+                                {{ current_user.phone[:3] }}{{ '•' * (current_user.phone|length - 5) }}{{ current_user.phone[-2:] }}
+                            </span>
+                            <span id="phone-full" style="display:none;">{{ current_user.phone }}</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
+                                    data-masked="phone-masked" data-full="phone-full">Show</button>
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {# Address — hidden behind toggle #}
+                    <div class="col-12">
+                        <label class="text-muted small">Address</label>
+                        {% set addr = current_user.full_address %}
+                        {% if addr %}
+                        <p class="mb-0 d-flex align-items-center gap-2">
+                            <span id="addr-masked" class="text-muted fst-italic">•••••••••••••••</span>
+                            <span id="addr-full" style="display:none;">{{ addr }}</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
+                                    data-masked="addr-masked" data-full="addr-full">Show</button>
+                        </p>
+                        {% else %}
+                        <p class="mb-0 text-muted">Not set — <a href="{{ url_for('auth.edit_profile') }}">add your address</a></p>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="text-muted small">Member Since</label>
+                        <p class="mb-0">{{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="text-muted small">Account Status</label>
+                        <p class="mb-0">
+                            {% if current_user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Pending Approval</span>
+                            {% endif %}
+                            {% if current_user.email_verified %}
+                            <span class="badge bg-info text-dark ms-1">Email Verified</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary btn-sm">Edit Profile</a>
             </div>
         </div>
+
+        {# Seller info #}
+        {% if current_user.is_seller() %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">🏪 Shop Information</h5></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Store Name</label>
+                        <p class="mb-0 fw-bold">{{ current_user.shop_name or '—' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Shop Rating</label>
+                        <p class="mb-0">
+                            <span class="text-warning">
+                                {% for i in range(1,6) %}{% if i <= current_user.shop_rating|int %}★{% else %}☆{% endif %}{% endfor %}
+                            </span>
+                            {{ current_user.shop_rating }}/5.0
+                        </p>
+                    </div>
+                    {% if current_user.shop_description %}
+                    <div class="col-12">
+                        <label class="text-muted small">Description</label>
+                        <p class="mb-0">{{ current_user.shop_description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Rider info #}
+        {% if current_user.is_rider() %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">🏍️ Rider Information</h5></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Vehicle Type</label>
+                        <p class="mb-0 fw-bold">{{ current_user.vehicle_type or '—' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Plate Number</label>
+                        <p class="mb-0 d-flex align-items-center gap-2">
+                            {% if current_user.plate_number %}
+                            <span id="plate-masked">{{ current_user.plate_number[:3] }}•••</span>
+                            <span id="plate-full" style="display:none;">{{ current_user.plate_number }}</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
+                                    data-masked="plate-masked" data-full="plate-full">Show</button>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
-    
+
+    {# ── Right: Quick links ── #}
     <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5>Quick Links</h5>
-            </div>
-            <div class="card-body">
+            <div class="card-header"><h6 class="mb-0">Quick Links</h6></div>
+            <div class="card-body d-grid gap-2">
                 {% if current_user.is_buyer() %}
-                    <a href="{{ url_for('orders.my_orders') }}" class="btn btn-sm btn-primary w-100 mb-2">My Orders</a>
-                    <a href="{{ url_for('products.list_products') }}" class="btn btn-sm btn-primary w-100 mb-2">Shop</a>
+                <a href="{{ url_for('orders.my_orders') }}" class="btn btn-sm btn-outline-primary">📋 My Orders</a>
+                <a href="{{ url_for('wishlist.view') }}" class="btn btn-sm btn-outline-danger">♡ Wishlist</a>
+                <a href="{{ url_for('products.list_products') }}" class="btn btn-sm btn-outline-secondary">🛍️ Shop</a>
                 {% endif %}
-                
                 {% if current_user.is_seller() %}
-                    <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-sm btn-primary w-100 mb-2">My Products</a>
-                    <a href="{{ url_for('products.add_product') }}" class="btn btn-sm btn-success w-100 mb-2">Add New Product</a>
-                    <a href="{{ url_for('orders.seller_received_orders') }}" class="btn btn-sm btn-primary w-100 mb-2">Received Orders</a>
+                <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-sm btn-outline-success">🏪 My Products</a>
+                <a href="{{ url_for('orders.seller_received_orders') }}" class="btn btn-sm btn-outline-primary">📦 Orders</a>
                 {% endif %}
-                
+                {% if current_user.is_rider() %}
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-warning">🏍️ Deliveries</a>
+                {% endif %}
                 {% if current_user.is_admin() %}
-                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-danger w-100 mb-2">Admin Dashboard</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-danger">🔧 Admin Panel</a>
                 {% endif %}
-                
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-danger w-100">Logout</a>
+                <hr class="my-1">
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-danger">Logout</a>
             </div>
         </div>
     </div>
+
 </div>
+
+<script>
+document.querySelectorAll('.reveal-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const masked = document.getElementById(btn.dataset.masked)
+        const full   = document.getElementById(btn.dataset.full)
+        const showing = full.style.display !== 'none'
+        masked.style.display = showing ? 'inline' : 'none'
+        full.style.display   = showing ? 'none'   : 'inline'
+        btn.textContent      = showing ? 'Show'   : 'Hide'
+    })
+})
+</script>
 {% endblock %}

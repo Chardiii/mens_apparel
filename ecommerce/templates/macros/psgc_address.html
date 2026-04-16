@@ -1,0 +1,52 @@
+{% macro psgc_address(street='', barangay='', municipality='', province='', region='', zip_code='') %}
+<div class="mb-3">
+    <label class="form-label fw-bold">Address</label>
+
+    <div class="mb-2">
+        <label class="form-label small">Region <span class="text-danger">*</span></label>
+        <select class="form-select" id="psgc-region" name="region" required>
+            <option value="">— Select Region —</option>
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small">Province <span class="text-danger">*</span></label>
+        <select class="form-select" id="psgc-province" name="province" required disabled>
+            <option value="">— Select Province —</option>
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small">City / Municipality <span class="text-danger">*</span></label>
+        <select class="form-select" id="psgc-municipality" name="municipality" required disabled>
+            <option value="">— Select City / Municipality —</option>
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label small">Barangay <span class="text-danger">*</span></label>
+        <select class="form-select" id="psgc-barangay" name="barangay" required disabled>
+            <option value="">— Select Barangay —</option>
+        </select>
+    </div>
+    <div class="row">
+        <div class="col-md-8 mb-2">
+            <label class="form-label small">House No. / Street / Subdivision</label>
+            <input type="text" class="form-control" name="street"
+                   placeholder="e.g. 123 Rizal St., Brgy. San Jose"
+                   value="{{ street }}">
+        </div>
+        <div class="col-md-4 mb-2">
+            <label class="form-label small">ZIP Code</label>
+            <input type="text" class="form-control" name="zip_code"
+                   placeholder="e.g. 4000" value="{{ zip_code }}" maxlength="10">
+        </div>
+    </div>
+</div>
+
+<script>
+window._psgcPrefill = {
+    region:       {{ region|tojson }},
+    province:     {{ province|tojson }},
+    municipality: {{ municipality|tojson }},
+    barangay:     {{ barangay|tojson }}
+}
+</script>
+{% endmacro %}

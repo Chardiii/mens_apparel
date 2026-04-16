@@ -7,6 +7,15 @@ import uuid
 
 products_bp = Blueprint('products', __name__, url_prefix='/products')
 
+CATEGORIES = [
+    'Suits & Blazers',
+    'Casual Shirts & Pants',
+    'Outerwear & Jackets',
+    'Activewear & Fitness Gear',
+    'Shoes & Accessories',
+    'Grooming Products',
+]
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_file(filename):
@@ -58,12 +67,8 @@ def list_products():
 
     products = query.paginate(page=page, per_page=12)
 
-    # All distinct categories for sidebar
-    categories = [r[0] for r in
-        db.session.query(Product.category)
-        .filter(Product.is_active == True, Product.category != None, Product.category != '')
-        .distinct().order_by(Product.category).all()
-    ]
+    # Fixed category list
+    categories = CATEGORIES
 
     filters = dict(search=search, category=category, sort=sort,
                    min_price=min_price, max_price=max_price,
@@ -223,7 +228,7 @@ def add_product():
         flash('Product added successfully!', 'success')
         return redirect(url_for('products.seller_dashboard'))
 
-    return render_template('add_product.html')
+    return render_template('add_product.html', categories=CATEGORIES)
 
 
 @products_bp.route('/seller/edit/<int:product_id>', methods=['GET', 'POST'])
@@ -259,7 +264,7 @@ def edit_product(product_id):
         flash('Product updated successfully!', 'success')
         return redirect(url_for('products.seller_dashboard'))
 
-    return render_template('edit_product.html', product=product)
+    return render_template('edit_product.html', product=product, categories=CATEGORIES)
 
 
 @products_bp.route('/seller/delete/<int:product_id>', methods=['POST'])

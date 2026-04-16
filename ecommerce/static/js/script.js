@@ -1,6 +1,6 @@
 /* ── Mode S7vn — script.js ─────────────────────────────────────── */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
     // ── 1. Auto-show server-side toasts ──────────────────────────
     document.querySelectorAll('.toast').forEach(el => {
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
 
-    // ── 5. Password strength meter ────────────────────────────────
+    // ── 5. Password strength meter + requirements checklist ──────────────
     const pwField = document.getElementById('password-field')
     const strengthBar  = document.getElementById('pw-strength-bar')
     const strengthText = document.getElementById('pw-strength-text')
@@ -139,22 +139,140 @@ document.addEventListener('DOMContentLoaded', () => {
             if (/[^A-Za-z0-9]/.test(val))     score++
 
             const levels = [
-                { label: '',          color: '',          width: '0%'   },
-                { label: 'Very Weak', color: 'bg-danger', width: '20%'  },
-                { label: 'Weak',      color: 'bg-warning',width: '40%'  },
-                { label: 'Fair',      color: 'bg-info',   width: '60%'  },
-                { label: 'Strong',    color: 'bg-primary',width: '80%'  },
-                { label: 'Very Strong',color:'bg-success',width: '100%' },
+                { label: '',           color: '',           width: '0%'   },
+                { label: 'Very Weak',  color: 'bg-danger',  width: '20%'  },
+                { label: 'Weak',       color: 'bg-warning', width: '40%'  },
+                { label: 'Fair',       color: 'bg-info',    width: '60%'  },
+                { label: 'Strong',     color: 'bg-primary', width: '80%'  },
+                { label: 'Very Strong',color: 'bg-success', width: '100%' },
             ]
             const level = levels[score] || levels[0]
             strengthBar.style.width = level.width
             strengthBar.className   = `progress-bar ${level.color}`
             if (strengthText) strengthText.textContent = level.label
+
+            // Live requirements checklist
+            const mark = (id, ok) => {
+                const el = document.getElementById(id)
+                if (!el) return
+                el.style.color     = ok ? '#198754' : ''
+                el.style.fontWeight = ok ? 'bold' : ''
+                el.textContent = el.textContent.replace(/^[\u2713\u2717] /, '')
+                el.textContent = (ok ? '\u2713 ' : '\u2717 ') + el.textContent
+            }
+            mark('req-len',     val.length >= 8)
+            mark('req-upper',   /[A-Z]/.test(val))
+            mark('req-num',     /[0-9]/.test(val))
+            mark('req-special', /[^A-Za-z0-9]/.test(val))
         })
     }
 
 
-    // ── 6. Live search suggestions ────────────────────────────────
+    // ── 6. Show / hide password toggle ───────────────────────────────
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.target)
+            if (!input) return
+            const show = input.type === 'password'
+            input.type  = show ? 'text' : 'password'
+            btn.textContent = show ? '🙈' : '👁'
+        })
+    })
+
+
+    // ── 7. PSGC cascading address dropdowns ─────────────────────────
+    const PSGC = 'https://psgc.gitlab.io/api'
+
+    const selRegion   = document.getElementById('psgc-region')
+    const selProvince = document.getElementById('psgc-province')
+    const selMuni     = document.getElementById('psgc-municipality')
+    const selBrgy     = document.getElementById('psgc-barangay')
+
+    if (selRegion) {
+        const populate = async (sel, url, placeholder) => {
+            sel.innerHTML = `<option value="">${placeholder}</option>`
+            sel.disabled = true
+            try {
+                const data = await (await fetch(url)).json()
+                const sorted = data.sort((a, b) => a.name.localeCompare(b.name))
+                sorted.forEach(item => {
+                    const opt = document.createElement('option')
+                    opt.value = item.name
+                    opt.dataset.code = item.code
+                    opt.textContent  = item.name
+                    sel.appendChild(opt)
+                })
+                sel.disabled = false
+            } catch { sel.disabled = false }
+        }
+
+        const resetBelow = (...sels) => sels.forEach(s => {
+            s.innerHTML = `<option value="">— Select —</option>`
+            s.disabled = true
+        })
+
+        const getCode = sel => sel.options[sel.selectedIndex]?.dataset.code
+
+        // Load regions on page load
+        await populate(selRegion, `${PSGC}/regions/`, '— Select Region —')
+
+        selRegion.addEventListener('change', async () => {
+            resetBelow(selProvince, selMuni, selBrgy)
+            if (!selRegion.value) return
+            const code = getCode(selRegion)
+            await populate(selProvince, `${PSGC}/regions/${code}/provinces/`, '— Select Province —')
+        })
+
+        selProvince.addEventListener('change', async () => {
+            resetBelow(selMuni, selBrgy)
+            if (!selProvince.value) return
+            const code = getCode(selProvince)
+            await populate(selMuni, `${PSGC}/provinces/${code}/cities-municipalities/`, '— Select City / Municipality —')
+        })
+
+        selMuni.addEventListener('change', async () => {
+            resetBelow(selBrgy)
+            if (!selMuni.value) return
+            const code = getCode(selMuni)
+            await populate(selBrgy, `${PSGC}/cities-municipalities/${code}/barangays/`, '— Select Barangay —')
+        })
+
+        // Pre-fill saved values (edit profile)
+        const prefill = window._psgcPrefill
+        if (prefill && prefill.region) {
+            // Wait for regions to load then cascade
+            const waitAndSelect = (sel, value, cb) => {
+                const interval = setInterval(() => {
+                    const opt = Array.from(sel.options).find(o => o.value === value)
+                    if (opt) {
+                        sel.value = value
+                        clearInterval(interval)
+                        if (cb) cb()
+                    }
+                }, 100)
+            }
+
+            waitAndSelect(selRegion, prefill.region, async () => {
+                const rCode = getCode(selRegion)
+                await populate(selProvince, `${PSGC}/regions/${rCode}/provinces/`, '— Select Province —')
+                if (!prefill.province) return
+                waitAndSelect(selProvince, prefill.province, async () => {
+                    const pCode = getCode(selProvince)
+                    await populate(selMuni, `${PSGC}/provinces/${pCode}/cities-municipalities/`, '— Select City / Municipality —')
+                    if (!prefill.municipality) return
+                    waitAndSelect(selMuni, prefill.municipality, async () => {
+                        const mCode = getCode(selMuni)
+                        await populate(selBrgy, `${PSGC}/cities-municipalities/${mCode}/barangays/`, '— Select Barangay —')
+                        if (!prefill.barangay) return
+                        waitAndSelect(selBrgy, prefill.barangay, null)
+                    })
+                })
+            })
+        }
+    }
+
+
+    // ── 8. Live search suggestions ────────────────────────────────
     const searchInput   = document.getElementById('search-input')
     const suggestionBox = document.getElementById('search-suggestions')
 
