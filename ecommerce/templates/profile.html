@@ -1,139 +1,188 @@
 {% extends "base.html" %}
 
-{% block title %}Profile - Mode S7vn{% endblock %}
+{% block title %}My Profile - Mode S7vn{% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="prof-wrap">
 
-    {# ── Left: Profile info ── #}
-    <div class="col-md-8">
-
-        {# Basic info card #}
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Account Information</h5>
-                <span class="badge bg-{{
-                    'primary' if current_user.role == 'buyer' else
-                    'success' if current_user.role == 'seller' else
-                    'warning text-dark' if current_user.role == 'rider' else
-                    'danger'
-                }}">{{ current_user.role.upper() }}</span>
+    {# ── Left: avatar + quick nav ── #}
+    <div class="prof-sidebar">
+        <div class="prof-avatar-card">
+            <div class="prof-avatar">
+                {{ (current_user.first_name or current_user.username)[0].upper() }}
             </div>
-            <div class="card-body">
-                <div class="row g-3">
+            <div class="prof-avatar-name">
+                {{ current_user.first_name or '' }} {{ current_user.last_name or '' }}
+                {% if not current_user.first_name and not current_user.last_name %}
+                {{ current_user.username }}
+                {% endif %}
+            </div>
+            <div class="prof-avatar-role">
+                <span class="prof-role-badge prof-role-{{ current_user.role }}">
+                    {% if current_user.role == 'buyer' %}🛍️
+                    {% elif current_user.role == 'seller' %}🏪
+                    {% elif current_user.role == 'rider' %}🏍️
+                    {% else %}🔧{% endif %}
+                    {{ current_user.role.upper() }}
+                </span>
+            </div>
+            <div class="prof-status-row">
+                {% if current_user.is_active %}
+                <span class="prof-status-dot prof-status-active"></span>
+                <span class="prof-status-text">Active</span>
+                {% else %}
+                <span class="prof-status-dot prof-status-pending"></span>
+                <span class="prof-status-text">Pending Approval</span>
+                {% endif %}
+                {% if current_user.email_verified %}
+                <span class="prof-verified-badge">✓ Verified</span>
+                {% endif %}
+            </div>
+        </div>
 
-                    <div class="col-md-6">
-                        <label class="text-muted small">Full Name</label>
-                        <p class="mb-0 fw-bold">
+        <div class="prof-nav-card">
+            {% if current_user.is_buyer() %}
+            <a href="{{ url_for('orders.my_orders') }}" class="prof-nav-item">
+                <span>📋</span> My Orders
+            </a>
+            <a href="{{ url_for('wishlist.view') }}" class="prof-nav-item">
+                <span>♡</span> Wishlist
+            </a>
+            <a href="{{ url_for('orders.cart') }}" class="prof-nav-item">
+                <span>🛒</span> Cart
+            </a>
+            {% endif %}
+            {% if current_user.is_seller() %}
+            <a href="{{ url_for('products.seller_dashboard') }}" class="prof-nav-item">
+                <span>🏪</span> My Products
+            </a>
+            <a href="{{ url_for('orders.seller_received_orders') }}" class="prof-nav-item">
+                <span>📦</span> Orders
+            </a>
+            {% endif %}
+            {% if current_user.is_rider() %}
+            <a href="{{ url_for('main.dashboard') }}" class="prof-nav-item">
+                <span>🏍️</span> Deliveries
+            </a>
+            {% endif %}
+            {% if current_user.is_admin() %}
+            <a href="{{ url_for('admin.dashboard') }}" class="prof-nav-item">
+                <span>🔧</span> Admin Panel
+            </a>
+            {% endif %}
+            <div class="prof-nav-divider"></div>
+            <a href="{{ url_for('auth.edit_profile') }}" class="prof-nav-item">
+                <span>✏️</span> Edit Profile
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="prof-nav-item prof-nav-logout">
+                <span>🚪</span> Logout
+            </a>
+        </div>
+    </div>
+
+    {# ── Right: info cards ── #}
+    <div class="prof-main">
+
+        {# Account info #}
+        <div class="prof-card mb-4">
+            <div class="prof-card-header">
+                <h5 class="prof-card-title">Account Information</h5>
+                <a href="{{ url_for('auth.edit_profile') }}" class="prof-edit-link">Edit →</a>
+            </div>
+            <div class="prof-card-body">
+                <div class="prof-grid">
+
+                    <div class="prof-field">
+                        <label class="prof-field-label">Username</label>
+                        <p class="prof-field-value">{{ current_user.username }}</p>
+                    </div>
+
+                    <div class="prof-field">
+                        <label class="prof-field-label">Full Name</label>
+                        <p class="prof-field-value">
+                            {% if current_user.first_name or current_user.last_name %}
                             {{ current_user.first_name or '' }} {{ current_user.last_name or '' }}
-                            {% if not current_user.first_name and not current_user.last_name %}
-                            <span class="text-muted">Not set</span>
-                            {% endif %}
+                            {% else %}<span class="prof-empty">Not set</span>{% endif %}
                         </p>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="text-muted small">Username</label>
-                        <p class="mb-0 fw-bold">{{ current_user.username }}</p>
-                    </div>
-
-                    {# Masked email #}
-                    <div class="col-md-6">
-                        <label class="text-muted small">Email</label>
-                        <p class="mb-0 d-flex align-items-center gap-2">
-                            <span id="email-masked">
-                                {% set parts = current_user.email.split('@') %}
-                                {% set local = parts[0] %}
-                                {{ local[:2] }}{{ '•' * (local|length - 2) }}@{{ parts[1] }}
+                    <div class="prof-field">
+                        <label class="prof-field-label">Email</label>
+                        <p class="prof-field-value prof-sensitive">
+                            {% set parts = current_user.email.split('@') %}
+                            {% set local = parts[0] %}
+                            <span class="prof-masked" id="email-m">
+                                {{ local[:2] }}{{ '•' * [local|length - 2, 0]|max }}@{{ parts[1] }}
                             </span>
-                            <span id="email-full" style="display:none;">{{ current_user.email }}</span>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
-                                    data-masked="email-masked" data-full="email-full">Show</button>
+                            <span class="prof-revealed" id="email-r" style="display:none;">
+                                {{ current_user.email }}
+                            </span>
+                            <button type="button" class="prof-reveal-btn" data-m="email-m" data-r="email-r">Show</button>
                         </p>
                     </div>
 
-                    {# Masked phone #}
-                    <div class="col-md-6">
-                        <label class="text-muted small">Phone</label>
-                        <p class="mb-0 d-flex align-items-center gap-2">
+                    <div class="prof-field">
+                        <label class="prof-field-label">Phone</label>
+                        <p class="prof-field-value prof-sensitive">
                             {% if current_user.phone %}
-                            <span id="phone-masked">
-                                {{ current_user.phone[:3] }}{{ '•' * (current_user.phone|length - 5) }}{{ current_user.phone[-2:] }}
+                            <span class="prof-masked" id="phone-m">
+                                {{ current_user.phone[:3] }}{{ '•' * [current_user.phone|length - 5, 0]|max }}{{ current_user.phone[-2:] if current_user.phone|length > 4 else '' }}
                             </span>
-                            <span id="phone-full" style="display:none;">{{ current_user.phone }}</span>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
-                                    data-masked="phone-masked" data-full="phone-full">Show</button>
+                            <span class="prof-revealed" id="phone-r" style="display:none;">{{ current_user.phone }}</span>
+                            <button type="button" class="prof-reveal-btn" data-m="phone-m" data-r="phone-r">Show</button>
+                            {% else %}<span class="prof-empty">Not set</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div class="prof-field prof-field-full">
+                        <label class="prof-field-label">Delivery Address</label>
+                        <p class="prof-field-value prof-sensitive">
+                            {% set addr = current_user.full_address %}
+                            {% if addr %}
+                            <span class="prof-masked" id="addr-m">•••••••••••••••••••</span>
+                            <span class="prof-revealed" id="addr-r" style="display:none;">{{ addr }}</span>
+                            <button type="button" class="prof-reveal-btn" data-m="addr-m" data-r="addr-r">Show</button>
                             {% else %}
-                            <span class="text-muted">Not set</span>
+                            <span class="prof-empty">Not set — <a href="{{ url_for('auth.edit_profile') }}">add your address</a></span>
                             {% endif %}
                         </p>
                     </div>
 
-                    {# Address — hidden behind toggle #}
-                    <div class="col-12">
-                        <label class="text-muted small">Address</label>
-                        {% set addr = current_user.full_address %}
-                        {% if addr %}
-                        <p class="mb-0 d-flex align-items-center gap-2">
-                            <span id="addr-masked" class="text-muted fst-italic">•••••••••••••••</span>
-                            <span id="addr-full" style="display:none;">{{ addr }}</span>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
-                                    data-masked="addr-masked" data-full="addr-full">Show</button>
-                        </p>
-                        {% else %}
-                        <p class="mb-0 text-muted">Not set — <a href="{{ url_for('auth.edit_profile') }}">add your address</a></p>
-                        {% endif %}
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="text-muted small">Member Since</label>
-                        <p class="mb-0">{{ current_user.created_at.strftime('%B %d, %Y') }}</p>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="text-muted small">Account Status</label>
-                        <p class="mb-0">
-                            {% if current_user.is_active %}
-                            <span class="badge bg-success">Active</span>
-                            {% else %}
-                            <span class="badge bg-warning text-dark">Pending Approval</span>
-                            {% endif %}
-                            {% if current_user.email_verified %}
-                            <span class="badge bg-info text-dark ms-1">Email Verified</span>
-                            {% endif %}
-                        </p>
+                    <div class="prof-field">
+                        <label class="prof-field-label">Member Since</label>
+                        <p class="prof-field-value">{{ current_user.created_at.strftime('%B %d, %Y') }}</p>
                     </div>
 
                 </div>
-            </div>
-            <div class="card-footer">
-                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary btn-sm">Edit Profile</a>
             </div>
         </div>
 
         {# Seller info #}
         {% if current_user.is_seller() %}
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0">🏪 Shop Information</h5></div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="text-muted small">Store Name</label>
-                        <p class="mb-0 fw-bold">{{ current_user.shop_name or '—' }}</p>
+        <div class="prof-card mb-4">
+            <div class="prof-card-header">
+                <h5 class="prof-card-title">🏪 Shop Information</h5>
+                <a href="{{ url_for('auth.edit_profile') }}" class="prof-edit-link">Edit →</a>
+            </div>
+            <div class="prof-card-body">
+                <div class="prof-grid">
+                    <div class="prof-field">
+                        <label class="prof-field-label">Store Name</label>
+                        <p class="prof-field-value fw-bold">{{ current_user.shop_name or '—' }}</p>
                     </div>
-                    <div class="col-md-6">
-                        <label class="text-muted small">Shop Rating</label>
-                        <p class="mb-0">
-                            <span class="text-warning">
+                    <div class="prof-field">
+                        <label class="prof-field-label">Shop Rating</label>
+                        <p class="prof-field-value">
+                            <span style="color:#f59e0b;">
                                 {% for i in range(1,6) %}{% if i <= current_user.shop_rating|int %}★{% else %}☆{% endif %}{% endfor %}
                             </span>
-                            {{ current_user.shop_rating }}/5.0
+                            <span class="text-muted ms-1">{{ current_user.shop_rating }}/5.0</span>
                         </p>
                     </div>
                     {% if current_user.shop_description %}
-                    <div class="col-12">
-                        <label class="text-muted small">Description</label>
-                        <p class="mb-0">{{ current_user.shop_description }}</p>
+                    <div class="prof-field prof-field-full">
+                        <label class="prof-field-label">Description</label>
+                        <p class="prof-field-value">{{ current_user.shop_description }}</p>
                     </div>
                     {% endif %}
                 </div>
@@ -143,22 +192,24 @@
 
         {# Rider info #}
         {% if current_user.is_rider() %}
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0">🏍️ Rider Information</h5></div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="text-muted small">Vehicle Type</label>
-                        <p class="mb-0 fw-bold">{{ current_user.vehicle_type or '—' }}</p>
+        <div class="prof-card mb-4">
+            <div class="prof-card-header">
+                <h5 class="prof-card-title">🏍️ Rider Information</h5>
+                <a href="{{ url_for('auth.edit_profile') }}" class="prof-edit-link">Edit →</a>
+            </div>
+            <div class="prof-card-body">
+                <div class="prof-grid">
+                    <div class="prof-field">
+                        <label class="prof-field-label">Vehicle Type</label>
+                        <p class="prof-field-value">{{ current_user.vehicle_type or '—' }}</p>
                     </div>
-                    <div class="col-md-6">
-                        <label class="text-muted small">Plate Number</label>
-                        <p class="mb-0 d-flex align-items-center gap-2">
+                    <div class="prof-field">
+                        <label class="prof-field-label">Plate Number</label>
+                        <p class="prof-field-value prof-sensitive">
                             {% if current_user.plate_number %}
-                            <span id="plate-masked">{{ current_user.plate_number[:3] }}•••</span>
-                            <span id="plate-full" style="display:none;">{{ current_user.plate_number }}</span>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-muted reveal-btn"
-                                    data-masked="plate-masked" data-full="plate-full">Show</button>
+                            <span class="prof-masked" id="plate-m">{{ current_user.plate_number[:3] }}•••</span>
+                            <span class="prof-revealed" id="plate-r" style="display:none;">{{ current_user.plate_number }}</span>
+                            <button type="button" class="prof-reveal-btn" data-m="plate-m" data-r="plate-r">Show</button>
                             {% else %}—{% endif %}
                         </p>
                     </div>
@@ -168,45 +219,144 @@
         {% endif %}
 
     </div>
-
-    {# ── Right: Quick links ── #}
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0">Quick Links</h6></div>
-            <div class="card-body d-grid gap-2">
-                {% if current_user.is_buyer() %}
-                <a href="{{ url_for('orders.my_orders') }}" class="btn btn-sm btn-outline-primary">📋 My Orders</a>
-                <a href="{{ url_for('wishlist.view') }}" class="btn btn-sm btn-outline-danger">♡ Wishlist</a>
-                <a href="{{ url_for('products.list_products') }}" class="btn btn-sm btn-outline-secondary">🛍️ Shop</a>
-                {% endif %}
-                {% if current_user.is_seller() %}
-                <a href="{{ url_for('products.seller_dashboard') }}" class="btn btn-sm btn-outline-success">🏪 My Products</a>
-                <a href="{{ url_for('orders.seller_received_orders') }}" class="btn btn-sm btn-outline-primary">📦 Orders</a>
-                {% endif %}
-                {% if current_user.is_rider() %}
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-warning">🏍️ Deliveries</a>
-                {% endif %}
-                {% if current_user.is_admin() %}
-                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-danger">🔧 Admin Panel</a>
-                {% endif %}
-                <hr class="my-1">
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-danger">Logout</a>
-            </div>
-        </div>
-    </div>
-
 </div>
 
+<style>
+.prof-wrap {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 1.75rem;
+    align-items: start;
+}
+@media (max-width: 860px) { .prof-wrap { grid-template-columns: 1fr; } }
+
+/* Avatar card */
+.prof-avatar-card {
+    background: var(--brand-dark);
+    border-radius: 16px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(200,169,110,.15);
+}
+.prof-avatar {
+    width: 72px; height: 72px;
+    background: var(--brand-accent);
+    color: var(--brand-dark);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 800;
+    margin: 0 auto 1rem;
+}
+.prof-avatar-name { color: #fff; font-weight: 700; font-size: 1rem; margin-bottom: .5rem; }
+.prof-avatar-role { margin-bottom: .75rem; }
+.prof-role-badge {
+    font-size: .72rem; font-weight: 700;
+    padding: .3rem .85rem; border-radius: 999px;
+    letter-spacing: .5px;
+}
+.prof-role-buyer  { background: rgba(59,130,246,.2);  color: #93c5fd; }
+.prof-role-seller { background: rgba(34,197,94,.2);   color: #86efac; }
+.prof-role-rider  { background: rgba(234,179,8,.2);   color: #fde047; }
+.prof-role-admin  { background: rgba(239,68,68,.2);   color: #fca5a5; }
+
+.prof-status-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: .4rem; flex-wrap: wrap;
+}
+.prof-status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.prof-status-active  { background: #22c55e; }
+.prof-status-pending { background: #f59e0b; }
+.prof-status-text { color: #aaa; font-size: .75rem; }
+.prof-verified-badge {
+    background: rgba(34,197,94,.15); color: #86efac;
+    font-size: .68rem; font-weight: 700;
+    padding: .2rem .55rem; border-radius: 999px;
+}
+
+/* Nav card */
+.prof-nav-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #ece9e1;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.prof-nav-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .75rem 1.1rem;
+    font-size: .85rem; font-weight: 500;
+    color: #555; text-decoration: none;
+    border-bottom: 1px solid #f8f6f2;
+    transition: background .15s, color .15s;
+}
+.prof-nav-item:last-child { border-bottom: none; }
+.prof-nav-item:hover { background: #faf9f6; color: var(--brand-dark); }
+.prof-nav-logout { color: #dc2626; }
+.prof-nav-logout:hover { background: #fff1f2; color: #dc2626; }
+.prof-nav-divider { height: 1px; background: #f0ede6; }
+
+/* Info cards */
+.prof-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #ece9e1;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
+}
+.prof-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f0ede6;
+    background: #faf9f6;
+}
+.prof-card-title { font-size: .95rem; font-weight: 700; color: var(--brand-dark); margin: 0; }
+.prof-edit-link  { font-size: .8rem; color: var(--brand-accent); text-decoration: none; font-weight: 600; }
+.prof-edit-link:hover { color: #a8893e; }
+.prof-card-body  { padding: 1.5rem; }
+
+.prof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+@media (max-width: 600px) { .prof-grid { grid-template-columns: 1fr; } }
+
+.prof-field-full { grid-column: 1 / -1; }
+.prof-field-label {
+    font-size: .72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: #aaa; display: block; margin-bottom: .3rem;
+}
+.prof-field-value { font-size: .9rem; color: var(--brand-dark); margin: 0; }
+.prof-empty { color: #bbb; font-style: italic; }
+
+/* Sensitive reveal */
+.prof-sensitive { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.prof-masked  { color: #aaa; letter-spacing: 1px; }
+.prof-revealed { color: var(--brand-dark); }
+.prof-reveal-btn {
+    background: none; border: 1px solid #e0ddd5;
+    border-radius: 4px; padding: .15rem .5rem;
+    font-size: .72rem; color: #888; cursor: pointer;
+    transition: border-color .15s, color .15s;
+}
+.prof-reveal-btn:hover { border-color: var(--brand-dark); color: var(--brand-dark); }
+</style>
+
 <script>
-document.querySelectorAll('.reveal-btn').forEach(btn => {
+document.querySelectorAll('.prof-reveal-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const masked = document.getElementById(btn.dataset.masked)
-        const full   = document.getElementById(btn.dataset.full)
-        const showing = full.style.display !== 'none'
-        masked.style.display = showing ? 'inline' : 'none'
-        full.style.display   = showing ? 'none'   : 'inline'
-        btn.textContent      = showing ? 'Show'   : 'Hide'
+        const masked   = document.getElementById(btn.dataset.m)
+        const revealed = document.getElementById(btn.dataset.r)
+        const showing  = revealed.style.display !== 'none'
+        masked.style.display   = showing ? 'inline' : 'none'
+        revealed.style.display = showing ? 'none'   : 'inline'
+        btn.textContent        = showing ? 'Show'   : 'Hide'
     })
 })
 </script>
+
 {% endblock %}

@@ -1,41 +1,187 @@
 {% extends "base.html" %}
 
-{% block title %}Mode S7vn — Shop Local, Pay on Delivery{% endblock %}
+{% block title %}Mode S7vn — Men's Apparel{% endblock %}
 
 {% block content %}
-<div class="hero-banner rounded-3 p-5 mb-5 text-white">
-    {% if current_user.is_authenticated %}
-        <h1 class="display-5 fw-bold">Welcome back, {{ current_user.first_name or current_user.username }}!</h1>
-        <p class="lead">Ready to shop? Everything ships Cash on Delivery.</p>
-        <a class="btn btn-light btn-lg" href="{{ url_for('products.list_products') }}">Browse Products</a>
-    {% else %}
-        <h1 class="display-5 fw-bold">Mode S7vn</h1>
-        <p class="lead">Shop local. Pay when it arrives. No cards needed.</p>
-        <a class="btn btn-light btn-lg me-2" href="{{ url_for('auth.register') }}">Get Started</a>
-        <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}">Login</a>
-    {% endif %}
-</div>
 
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card h-100 text-center">
-            <div class="card-body py-4">
-                <div class="fs-1 mb-2">🛍️</div>
-                <h5 class="card-title">Shop</h5>
-                <p class="card-text text-muted">Browse products from local sellers. Add to cart and checkout in seconds.</p>
-                <a href="{{ url_for('products.list_products') }}" class="btn btn-primary btn-sm">Browse Now</a>
+{# ══════════════════════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════════════════════ #}
+<section class="hero-section mb-5">
+    <div class="hero-inner">
+        <div class="hero-content">
+            <p class="hero-eyebrow">New Collection · 2024</p>
+            <h1 class="hero-title">Dress Sharp.<br>Pay on Delivery.</h1>
+            <p class="hero-sub">Premium men's apparel from local sellers.<br>No cards. No hassle. Cash when it arrives.</p>
+            <div class="hero-actions">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('products.list_products') }}" class="btn-hero-primary">Shop Now</a>
+                {% else %}
+                <a href="{{ url_for('products.list_products') }}" class="btn-hero-primary">Shop Now</a>
+                <a href="{{ url_for('auth.register') }}" class="btn-hero-outline">Create Account</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="hero-badge-wrap">
+            <div class="hero-badge">
+                <span class="hero-badge-icon">💵</span>
+                <span class="hero-badge-text">Cash on<br>Delivery</span>
+            </div>
+            <div class="hero-badge">
+                <span class="hero-badge-icon">🏪</span>
+                <span class="hero-badge-text">Local<br>Sellers</span>
+            </div>
+            <div class="hero-badge">
+                <span class="hero-badge-icon">🏍️</span>
+                <span class="hero-badge-text">Fast<br>Delivery</span>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card h-100 text-center">
-            <div class="card-body py-4">
-                <div class="fs-1 mb-2">💵</div>
-                <h5 class="card-title">Cash on Delivery</h5>
-                <p class="card-text text-muted">No payment APIs. No cards. Pay the rider when your order arrives at your door.</p>
-                <a href="{{ url_for('auth.register') }}" class="btn btn-success btn-sm">Get Started</a>
+</section>
+
+{# ══════════════════════════════════════════════════════════════
+   CATEGORY GRID
+══════════════════════════════════════════════════════════════ #}
+<section class="mb-5">
+    <div class="section-header mb-4">
+        <h2 class="section-title">Shop by Category</h2>
+        <a href="{{ url_for('products.list_products') }}" class="section-link">View All →</a>
+    </div>
+
+    {% set cat_icons = {
+        'Suits & Blazers':          ('🤵', '#1a1a2e'),
+        'Casual Shirts & Pants':    ('👔', '#16213e'),
+        'Outerwear & Jackets':      ('🧥', '#0f3460'),
+        'Activewear & Fitness Gear':('💪', '#1b1b2f'),
+        'Shoes & Accessories':      ('👞', '#2c2c54'),
+        'Grooming Products':        ('✂️',  '#1a1a2e'),
+    } %}
+
+    <div class="category-grid">
+        {% for cat in categories %}
+        {% set icon, color = cat_icons.get(cat, ('🛍️', '#1a1a2e')) %}
+        <a href="{{ url_for('products.list_products', category=cat) }}"
+           class="category-card" style="--cat-color: {{ color }};">
+            <div class="category-icon">{{ icon }}</div>
+            <div class="category-name">{{ cat }}</div>
+            <div class="category-arrow">→</div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════════
+   BRAND STRIP
+══════════════════════════════════════════════════════════════ #}
+<section class="brand-strip mb-5">
+    <div class="brand-strip-inner">
+        <div class="brand-strip-item">
+            <span class="brand-strip-icon">✅</span>
+            <div>
+                <div class="brand-strip-label">Verified Sellers</div>
+                <div class="brand-strip-sub">Every seller is admin-approved</div>
+            </div>
+        </div>
+        <div class="brand-strip-divider"></div>
+        <div class="brand-strip-item">
+            <span class="brand-strip-icon">💵</span>
+            <div>
+                <div class="brand-strip-label">Cash on Delivery</div>
+                <div class="brand-strip-sub">Pay only when it arrives</div>
+            </div>
+        </div>
+        <div class="brand-strip-divider"></div>
+        <div class="brand-strip-item">
+            <span class="brand-strip-icon">🏍️</span>
+            <div>
+                <div class="brand-strip-label">Local Riders</div>
+                <div class="brand-strip-sub">Fast delivery to your door</div>
+            </div>
+        </div>
+        <div class="brand-strip-divider"></div>
+        <div class="brand-strip-item">
+            <span class="brand-strip-icon">⭐</span>
+            <div>
+                <div class="brand-strip-label">Buyer Reviews</div>
+                <div class="brand-strip-sub">Real ratings from real buyers</div>
             </div>
         </div>
     </div>
-</div>
+</section>
+
+{# ══════════════════════════════════════════════════════════════
+   FEATURED PRODUCTS
+══════════════════════════════════════════════════════════════ #}
+{% if featured %}
+<section class="mb-5">
+    <div class="section-header mb-4">
+        <h2 class="section-title">Featured Products</h2>
+        <a href="{{ url_for('products.list_products') }}" class="section-link">See All →</a>
+    </div>
+
+    <div class="featured-grid">
+        {% for product in featured %}
+        {% set primary = product.images.filter_by(is_primary=True).first() %}
+        <div class="featured-card">
+            <a href="{{ url_for('products.view_product', product_id=product.id) }}"
+               class="featured-img-wrap">
+                {% if primary %}
+                <img src="{{ url_for('static', filename='uploads/' ~ primary.image_url) }}"
+                     alt="{{ product.name }}" class="featured-img">
+                {% else %}
+                <div class="featured-img-placeholder">
+                    <span>📷</span>
+                </div>
+                {% endif %}
+                {% if product.stock == 0 %}
+                <span class="featured-badge-oos">Out of Stock</span>
+                {% endif %}
+            </a>
+            <div class="featured-info">
+                {% if product.category %}
+                <span class="featured-cat">{{ product.category }}</span>
+                {% endif %}
+                <a href="{{ url_for('products.view_product', product_id=product.id) }}"
+                   class="featured-name">{{ product.name }}</a>
+                <div class="featured-meta">
+                    <span class="featured-price">₱{{ "%.2f"|format(product.price) }}</span>
+                    <span class="featured-stars">
+                        {% for i in range(1,6) %}{% if i <= product.rating|int %}★{% else %}☆{% endif %}{% endfor %}
+                        <span class="featured-rc">({{ product.review_count }})</span>
+                    </span>
+                </div>
+                <div class="featured-actions">
+                    <a href="{{ url_for('products.view_product', product_id=product.id) }}"
+                       class="btn-featured-view">View Details</a>
+                    {% if current_user.is_authenticated and current_user.is_buyer() and product.stock > 0 %}
+                    <button class="btn-featured-wish wishlist-btn"
+                            data-product-id="{{ product.id }}"
+                            data-wishlisted="false">♡</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════════════
+   CTA BANNER
+══════════════════════════════════════════════════════════════ #}
+{% if not current_user.is_authenticated %}
+<section class="cta-section mb-2">
+    <div class="cta-inner">
+        <div>
+            <h3 class="cta-title">Ready to elevate your wardrobe?</h3>
+            <p class="cta-sub">Join Mode S7vn — shop local, pay on delivery, no cards needed.</p>
+        </div>
+        <div class="cta-actions">
+            <a href="{{ url_for('auth.register') }}" class="btn-cta-primary">Create Account</a>
+            <a href="{{ url_for('auth.login') }}" class="btn-cta-outline">Login</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 {% endblock %}

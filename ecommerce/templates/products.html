@@ -186,6 +186,12 @@
                         <div class="d-flex gap-2">
                             <a href="{{ url_for('products.view_product', product_id=product.id) }}"
                                class="btn btn-sm btn-primary flex-fill">View</a>
+                            {% if current_user.is_authenticated and current_user.is_buyer() and product.stock > 0 %}
+                            <form method="POST" action="{{ url_for('orders.buy_now', product_id=product.id) }}" class="flex-fill">
+                                <input type="hidden" name="quantity" value="1">
+                                <button type="submit" class="btn btn-sm btn-success w-100">⚡ Buy Now</button>
+                            </form>
+                            {% endif %}
                             {% if current_user.is_authenticated and current_user.is_buyer() %}
                             <button class="btn btn-sm btn-outline-danger wishlist-btn"
                                     data-product-id="{{ product.id }}"

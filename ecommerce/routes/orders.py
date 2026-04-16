@@ -92,6 +92,25 @@ def update_cart(product_id):
 
 # ── Checkout ──────────────────────────────────────────────────────────────────
 
+@orders_bp.route('/buy-now/<int:product_id>', methods=['POST'])
+@login_required
+def buy_now(product_id):
+    """Store item in a temporary buy-now session — does NOT touch the real cart."""
+    product = Product.query.get_or_404(product_id)
+    quantity = request.form.get('quantity', 1, type=int)
+
+    if quantity < 1:
+        quantity = 1
+    if quantity > product.stock:
+        flash(f'Only {product.stock} units available.', 'warning')
+        return redirect(url_for('products.view_product', product_id=product_id))
+
+    # Store in a separate key — real cart is untouched
+    session['buy_now_item'] = {'product_id': product_id, 'quantity': quantity}
+    session.modified = True
+    return redirect(url_for('orders.checkout', mode='buy_now'))
+
+
 @orders_bp.route('/clear-cart', methods=['POST'])
 def clear_cart():
     save_cart({})
@@ -99,41 +118,81 @@ def clear_cart():
     return redirect(url_for('orders.cart'))
 
 
+@orders_bp.route('/cancel-buy-now', methods=['POST'])
+@login_required
+def cancel_buy_now():
+    """Discard buy-now item without touching the real cart."""
+    session.pop('buy_now_item', None)
+    session.modified = True
+    return redirect(request.form.get('back_url') or url_for('products.list_products'))
+
+
 @orders_bp.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    cart = get_cart()
-    if not cart:
+    mode = request.args.get('mode', 'cart')  # 'cart' or 'buy_now'
+
+    # Build working items from the right source
+    def build_items(qty_overrides=None):
+        items = []
+        total = 0.0
+        if mode == 'buy_now':
+            bn = session.get('buy_now_item')
+            if bn:
+                product = Product.query.get(bn['product_id'])
+                if product and product.is_active:
+                    qty = qty_overrides.get(str(product.id), bn['quantity']) if qty_overrides else bn['quantity']
+                    qty = max(1, min(int(qty), product.stock))
+                    subtotal = product.price * qty
+                    total += subtotal
+                    items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
+        else:
+            cart = get_cart()
+            for pid_str, qty in cart.items():
+                product = Product.query.get(int(pid_str))
+                if product and product.is_active:
+                    qty = qty_overrides.get(pid_str, qty) if qty_overrides else qty
+                    qty = max(1, min(int(qty), product.stock))
+                    subtotal = product.price * qty
+                    total += subtotal
+                    items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
+        return items, round(total, 2)
+
+    if mode == 'buy_now' and not session.get('buy_now_item'):
+        flash('Nothing to checkout.', 'warning')
+        return redirect(url_for('products.list_products'))
+
+    if mode == 'cart' and not get_cart():
         flash('Your cart is empty.', 'warning')
         return redirect(url_for('orders.cart'))
 
-    # Build cart preview for GET and validation
-    cart_items = []
-    total = 0.0
-    for pid_str, qty in cart.items():
-        product = Product.query.get(int(pid_str))
-        if product and product.is_active:
-            subtotal = product.price * qty
-            total += subtotal
-            cart_items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
-
-    if not cart_items:
-        flash('No valid items in cart.', 'warning')
-        return redirect(url_for('orders.cart'))
-
     if request.method == 'POST':
+        # Read qty edits submitted from the form
+        qty_overrides = {}
+        for key, val in request.form.items():
+            if key.startswith('qty_'):
+                pid = key[4:]
+                try:
+                    qty_overrides[pid] = int(val)
+                except ValueError:
+                    pass
+
+        cart_items, total = build_items(qty_overrides)
+
+        if not cart_items:
+            flash('No valid items.', 'warning')
+            return redirect(url_for('orders.cart'))
+
         delivery_address = request.form.get('delivery_address', '').strip()
-        delivery_city = request.form.get('delivery_city', '').strip()
-        delivery_zip = request.form.get('delivery_zip', '').strip()
+        delivery_city    = request.form.get('delivery_city', '').strip()
+        delivery_zip     = request.form.get('delivery_zip', '').strip()
 
         if not delivery_address or not delivery_city:
             flash('Delivery address and city are required.', 'danger')
-            return render_template('checkout.html', cart_items=cart_items, total=total)
+            return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
 
-        # Determine seller — use first item's seller (single-seller order for now)
         seller_id = cart_items[0]['product'].seller_id
 
-        # Create order
         order = Order(
             order_number=f"ORD-{uuid.uuid4().hex[:8].upper()}",
             buyer_id=current_user.id,
@@ -141,21 +200,19 @@ def checkout():
             delivery_address=delivery_address,
             delivery_city=delivery_city,
             delivery_zip=delivery_zip,
-            total_amount=round(total, 2),
+            total_amount=total,
             status=OrderStatus.PENDING.value
         )
         db.session.add(order)
         db.session.flush()
 
-        # Create order items & deduct stock
         for item in cart_items:
             product = item['product']
-            qty = item['quantity']
+            qty     = item['quantity']
             if product.stock < qty:
                 db.session.rollback()
                 flash(f'Not enough stock for {product.name}.', 'danger')
-                return render_template('checkout.html', cart_items=cart_items, total=total)
-
+                return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
             product.stock -= qty
             db.session.add(OrderItem(
                 order_id=order.id,
@@ -165,21 +222,26 @@ def checkout():
                 subtotal=round(product.price * qty, 2)
             ))
 
-        # COD payment record
         db.session.add(Payment(
             order_id=order.id,
-            amount=round(total, 2),
+            amount=total,
             method='cod',
             status=PaymentStatus.PENDING.value
         ))
 
         db.session.commit()
-        save_cart({})  # Clear cart
+
+        # Clear the right source
+        if mode == 'buy_now':
+            session.pop('buy_now_item', None)
+        else:
+            save_cart({})
 
         flash('Order placed! Waiting for seller to verify.', 'success')
         return redirect(url_for('orders.order_detail', order_id=order.id))
 
-    return render_template('checkout.html', cart_items=cart_items, total=total)
+    cart_items, total = build_items()
+    return render_template('checkout.html', cart_items=cart_items, total=total, mode=mode)
 
 
 # ── Order views ───────────────────────────────────────────────────────────────

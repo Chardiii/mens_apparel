@@ -3,158 +3,663 @@
 {% block title %}{{ product.name }} - Mode S7vn{% endblock %}
 
 {% block content %}
-<div class="row g-4">
 
-    {# ── Left: Images + Add to Cart ── #}
-    <div class="col-md-6">
-        {% set images = product.images.all() %}
-        {% if images %}
-        <div id="productCarousel" class="carousel slide mb-3" data-bs-ride="carousel">
-            <div class="carousel-inner rounded">
-                {% for img in images %}
-                <div class="carousel-item {% if loop.first %}active{% endif %}">
-                    <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
-                         class="d-block w-100 product-main-img" alt="{{ product.name }}">
+{# Breadcrumb #}
+<nav class="pd-breadcrumb mb-4">
+    <a href="{{ url_for('main.index') }}">Home</a>
+    <span>/</span>
+    <a href="{{ url_for('products.list_products') }}">Products</a>
+    {% if product.category %}
+    <span>/</span>
+    <a href="{{ url_for('products.list_products', category=product.category) }}">{{ product.category }}</a>
+    {% endif %}
+    <span>/</span>
+    <span class="pd-breadcrumb-current">{{ product.name }}</span>
+</nav>
+
+<div class="pd-layout">
+
+    {# ══════════════════════════════════════════
+       LEFT COLUMN
+    ══════════════════════════════════════════ #}
+    <div class="pd-left">
+
+        {# Image Card #}
+        <div class="pd-image-card">
+            {% set images = product.images.all() %}
+            {% if images %}
+                {% if images|length > 1 %}
+                <div id="pdCarousel" class="carousel slide h-100" data-bs-ride="carousel">
+                    <div class="carousel-inner h-100">
+                        {% for img in images %}
+                        <div class="carousel-item h-100 {% if loop.first %}active{% endif %}">
+                            <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
+                                 class="pd-main-img" alt="{{ product.name }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#pdCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#pdCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
                 </div>
-                {% endfor %}
+                {% else %}
+                <img src="{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}"
+                     class="pd-main-img" alt="{{ product.name }}">
+                {% endif %}
+            {% else %}
+            <div class="pd-img-placeholder">
+                <span>📷</span>
+                <p>No image available</p>
             </div>
-            {% if images|length > 1 %}
-            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon"></span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon"></span>
-            </button>
             {% endif %}
         </div>
-        {% else %}
-        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height:280px;">
-            <span class="text-muted fs-1">📷</span>
+
+        {# Thumbnail strip #}
+        {% if images|length > 1 %}
+        <div class="pd-thumbs">
+            {% for img in images %}
+            <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
+                 class="pd-thumb {% if loop.first %}active{% endif %}"
+                 alt="thumb" onclick="goToSlide({{ loop.index0 }})">
+            {% endfor %}
         </div>
         {% endif %}
 
-        <div class="card">
-            <div class="card-body">
-                <h2 class="mb-1">{{ product.name }}</h2>
+        {# Product Info Card #}
+        <div class="pd-info-card">
+
+            <h1 class="pd-title">{{ product.name }}</h1>
+
+            <div class="pd-meta-row">
                 {% if product.category %}
-                <span class="badge bg-secondary mb-2">{{ product.category }}</span>
+                <span class="pd-category-badge">{{ product.category }}</span>
                 {% endif %}
-                <p class="text-muted">{{ product.description }}</p>
-                <h4 class="text-success">₱{{ "%.2f"|format(product.price) }}</h4>
-
-                <div class="mb-2">
-                    {% if product.stock > 0 %}
-                    <span class="badge bg-success">In Stock ({{ product.stock }} available)</span>
-                    {% else %}
-                    <span class="badge bg-danger">Out of Stock</span>
-                    {% endif %}
-                </div>
-
-                <div class="mb-3 text-warning">
-                    {% for i in range(1, 6) %}
-                        {% if i <= product.rating|int %}★{% else %}☆{% endif %}
-                    {% endfor %}
-                    <small class="text-muted ms-1">{{ product.rating }}/5 ({{ product.review_count }} reviews)</small>
-                </div>
-
-                {% if product.stock > 0 and current_user.is_authenticated and current_user.is_buyer() %}
-                <form method="POST" action="{{ url_for('orders.add_to_cart', product_id=product.id) }}" class="d-flex gap-2 align-items-end">
-                    <div>
-                        <label class="form-label mb-1 small">Qty</label>
-                        <input type="number" class="form-control form-control-sm" name="quantity"
-                               value="1" min="1" max="{{ product.stock }}" style="width:80px;">
-                    </div>
-                    <button type="submit" class="btn btn-success">🛒 Add to Cart</button>
-                </form>
-                {% elif not current_user.is_authenticated %}
-                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">Login to Buy</a>
-                {% endif %}
-
-                {% if current_user.is_authenticated and current_user.is_buyer() %}
-                {% set wishlisted = current_user.id | is_wishlisted(product.id) if false else false %}
-                <button class="btn btn-outline-danger mt-2 wishlist-btn"
-                        data-product-id="{{ product.id }}"
-                        data-wishlisted="{{ 'true' if wishlist_status else 'false' }}">
-                    {{ '♥ Wishlisted' if wishlist_status else '♡ Add to Wishlist' }}
-                </button>
+                {% if product.stock > 0 %}
+                <span class="pd-stock-badge pd-stock-in">In Stock ({{ product.stock }} available)</span>
+                {% else %}
+                <span class="pd-stock-badge pd-stock-out">Out of Stock</span>
                 {% endif %}
             </div>
+
+            <div class="pd-price">₱{{ "%.2f"|format(product.price) }}</div>
+
+            <div class="pd-rating-row">
+                <span class="pd-stars">
+                    {% for i in range(1, 6) %}
+                    <span class="{{ 'pd-star-filled' if i <= product.rating|int else 'pd-star-empty' }}">★</span>
+                    {% endfor %}
+                </span>
+                <span class="pd-rating-text">{{ product.rating }}/5 ({{ product.review_count }} review{{ 's' if product.review_count != 1 }})</span>
+            </div>
+
+            {% if product.description %}
+            <p class="pd-description">{{ product.description }}</p>
+            {% endif %}
+
+            <div class="pd-divider"></div>
+
+            {# Add to Cart #}
+            {% if product.stock > 0 and current_user.is_authenticated and current_user.is_buyer() %}
+            <form method="POST" action="{{ url_for('orders.add_to_cart', product_id=product.id) }}" class="pd-cart-form">
+                <div class="pd-qty-wrap">
+                    <label class="pd-qty-label">QTY</label>
+                    <div class="pd-qty-controls">
+                        <button type="button" class="pd-qty-btn" onclick="adjustQty(-1)">−</button>
+                        <input type="number" class="pd-qty-input" name="quantity" id="qty-input"
+                               value="1" min="1" max="{{ product.stock }}">
+                        <button type="button" class="pd-qty-btn" onclick="adjustQty(1)">+</button>
+                    </div>
+                </div>
+                <button type="submit" class="pd-btn-cart">
+                    <span>🛒</span> ADD TO CART
+                </button>
+            </form>
+
+            {# Buy Now / Checkout #}
+            <form method="POST" action="{{ url_for('orders.buy_now', product_id=product.id) }}" class="mb-2">
+                <input type="hidden" name="quantity" id="buy-now-qty" value="1">
+                <button type="submit" class="pd-btn-checkout">
+                    <span>⚡</span> BUY NOW
+                </button>
+            </form>
+
+            {# Wishlist #}
+            <button class="pd-btn-wishlist wishlist-btn"
+                    data-product-id="{{ product.id }}"
+                    data-wishlisted="{{ 'true' if wishlist_status else 'false' }}">
+                <span>{{ '♥' if wishlist_status else '♡' }}</span>
+                {{ 'WISHLISTED' if wishlist_status else 'ADD TO WISHLIST' }}
+            </button>
+
+            {% elif not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.login') }}" class="pd-btn-cart" style="text-decoration:none;text-align:center;">
+                LOGIN TO BUY
+            </a>
+            {% else %}
+            <div class="pd-out-of-stock-msg">
+                <span>😔</span> This product is currently out of stock.
+            </div>
+            {% endif %}
+
+            <a href="{{ url_for('products.list_products') }}" class="pd-btn-back">
+                ← BACK TO PRODUCTS
+            </a>
+
         </div>
     </div>
 
-    {# ── Right: Seller Info + Reviews ── #}
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header"><h6 class="mb-0">🏪 Seller</h6></div>
-            <div class="card-body">
-                <p class="fw-bold mb-1">{{ product.seller.shop_name or product.seller.username }}</p>
+    {# ══════════════════════════════════════════
+       RIGHT COLUMN
+    ══════════════════════════════════════════ #}
+    <div class="pd-right">
+
+        {# Seller Card #}
+        <div class="pd-sidebar-card">
+            <div class="pd-sidebar-header">
+                <span class="pd-sidebar-icon">🏪</span>
+                <h6 class="pd-sidebar-title">Seller</h6>
+            </div>
+            <div class="pd-sidebar-body">
+                <p class="pd-seller-name">{{ product.seller.shop_name or product.seller.username }}</p>
                 {% if product.seller.shop_description %}
-                <p class="text-muted small mb-0">{{ product.seller.shop_description }}</p>
+                <p class="pd-seller-tagline">{{ product.seller.shop_description }}</p>
+                {% endif %}
+                {% if product.seller.shop_rating %}
+                <div class="pd-seller-rating">
+                    {% for i in range(1, 6) %}
+                    <span class="{{ 'pd-star-filled' if i <= product.seller.shop_rating|int else 'pd-star-empty' }}">★</span>
+                    {% endfor %}
+                    <span class="pd-rating-text ms-1">{{ product.seller.shop_rating }}/5</span>
+                </div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Reviews ({{ product.review_count }})</h6>
+        {# Reviews Card #}
+        <div class="pd-sidebar-card">
+            <div class="pd-sidebar-header">
+                <span class="pd-sidebar-icon">⭐</span>
+                <h6 class="pd-sidebar-title">Reviews ({{ product.review_count }})</h6>
             </div>
-            <div class="card-body">
+            <div class="pd-sidebar-body">
 
-                {# Submit review form #}
+                {# Review form / status #}
                 {% if current_user.is_authenticated and current_user.is_buyer() %}
                     {% if user_has_reviewed %}
-                    <div class="alert alert-success py-2 small">You have already reviewed this product.</div>
+                    <div class="pd-alert pd-alert-success">✅ You have already reviewed this product.</div>
                     {% elif user_has_purchased %}
-                    <form method="POST" action="{{ url_for('products.submit_review', product_id=product.id) }}" class="mb-4">
-                        <p class="fw-bold mb-2">Leave a Review</p>
-                        <div class="mb-2">
-                            <label class="form-label small">Rating</label>
-                            <div class="d-flex gap-2">
-                                {% for i in range(1, 6) %}
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="rating" id="star{{ i }}" value="{{ i }}" required>
-                                    <label class="form-check-label" for="star{{ i }}">{{ i }}★</label>
-                                </div>
-                                {% endfor %}
-                            </div>
+                    <form method="POST" action="{{ url_for('products.submit_review', product_id=product.id) }}" class="pd-review-form">
+                        <p class="pd-review-form-title">Leave a Review</p>
+                        <div class="pd-star-select mb-3">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}" class="pd-star-radio" required>
+                            <label for="star{{ i }}" class="pd-star-label">★</label>
+                            {% endfor %}
                         </div>
-                        <div class="mb-2">
-                            <textarea class="form-control form-control-sm" name="comment" rows="2" placeholder="Share your experience..."></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-primary">Submit Review</button>
+                        <textarea class="pd-review-textarea" name="comment" rows="3"
+                                  placeholder="Share your experience with this product..."></textarea>
+                        <button type="submit" class="pd-btn-review">Submit Review</button>
                     </form>
                     {% else %}
-                    <div class="alert alert-info py-2 small mb-3">Purchase and receive this product to leave a review.</div>
+                    <div class="pd-alert pd-alert-info">
+                        💡 Purchase and receive this product to leave a review.
+                    </div>
                     {% endif %}
                 {% endif %}
 
                 {# Reviews list #}
-                {% for review in reviews %}
-                <div class="border-bottom pb-2 mb-2">
-                    <div class="d-flex justify-content-between">
-                        <strong class="small">{{ review.reviewer.username }}</strong>
-                        <span class="text-warning small">
-                            {% for i in range(1, 6) %}{% if i <= review.rating %}★{% else %}☆{% endif %}{% endfor %}
-                        </span>
+                {% if reviews %}
+                <div class="pd-reviews-list">
+                    {% for review in reviews %}
+                    <div class="pd-review-item">
+                        <div class="pd-review-header">
+                            <div class="pd-review-avatar">{{ review.reviewer.username[0].upper() }}</div>
+                            <div class="pd-review-meta">
+                                <span class="pd-review-username">{{ review.reviewer.username }}</span>
+                                <span class="pd-review-date">{{ review.created_at.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            <div class="pd-review-stars">
+                                {% for i in range(1, 6) %}
+                                <span class="{{ 'pd-star-filled' if i <= review.rating else 'pd-star-empty' }}">★</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if review.comment %}
+                        <p class="pd-review-comment">{{ review.comment }}</p>
+                        {% endif %}
                     </div>
-                    {% if review.comment %}
-                    <p class="small text-muted mb-0">{{ review.comment }}</p>
-                    {% endif %}
-                    <small class="text-muted" style="font-size:.75rem;">{{ review.created_at.strftime('%b %d, %Y') }}</small>
+                    {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted small mb-0">No reviews yet.</p>
-                {% endfor %}
+                <p class="pd-no-reviews">No reviews yet. Be the first to review this product!</p>
+                {% endif %}
+
             </div>
         </div>
+
     </div>
 </div>
 
-<div class="mt-3">
-    <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">← Back to Products</a>
-</div>
-
 <style>
-.product-main-img { height: 300px; object-fit: cover; }
+/* ── Layout ── */
+.pd-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 2rem;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .pd-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Breadcrumb ── */
+.pd-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .82rem;
+    color: #aaa;
+}
+.pd-breadcrumb a { color: #888; text-decoration: none; }
+.pd-breadcrumb a:hover { color: var(--brand-accent); }
+.pd-breadcrumb-current { color: var(--brand-dark); font-weight: 500; }
+
+/* ── Image Card ── */
+.pd-image-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #ece9e1;
+    overflow: hidden;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .75rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.pd-main-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.pd-img-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    color: #ccc;
+    font-size: 3rem;
+    width: 100%;
+    height: 100%;
+    background: #f8f6f1;
+}
+.pd-img-placeholder p { font-size: .85rem; margin: 0; }
+
+/* ── Thumbnails ── */
+.pd-thumbs {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.pd-thumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid #ece9e1;
+    cursor: pointer;
+    transition: border-color .2s;
+}
+.pd-thumb.active, .pd-thumb:hover { border-color: var(--brand-accent); }
+
+/* ── Info Card ── */
+.pd-info-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #ece9e1;
+    padding: 1.75rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.pd-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--brand-dark);
+    margin-bottom: .75rem;
+    line-height: 1.2;
+    letter-spacing: -.3px;
+}
+.pd-meta-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.pd-category-badge {
+    background: #f0ede6;
+    color: #666;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .3rem .75rem;
+    border-radius: 999px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+}
+.pd-stock-badge {
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .3rem .75rem;
+    border-radius: 999px;
+    letter-spacing: .3px;
+}
+.pd-stock-in  { background: #d1fae5; color: #065f46; }
+.pd-stock-out { background: #fee2e2; color: #991b1b; }
+
+.pd-price {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #065f46;
+    margin-bottom: .75rem;
+    letter-spacing: -.5px;
+}
+.pd-rating-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1rem;
+}
+.pd-stars { display: flex; gap: 2px; }
+.pd-star-filled { color: #f59e0b; font-size: 1rem; }
+.pd-star-empty  { color: #d1d5db; font-size: 1rem; }
+.pd-rating-text { font-size: .82rem; color: #888; }
+
+.pd-description {
+    font-size: .9rem;
+    color: #666;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+.pd-divider {
+    height: 1px;
+    background: #f0ede6;
+    margin: 1.25rem 0;
+}
+
+/* ── Cart form ── */
+.pd-cart-form {
+    display: flex;
+    gap: .75rem;
+    align-items: flex-end;
+    margin-bottom: .75rem;
+}
+.pd-qty-label {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #888;
+    display: block;
+    margin-bottom: .35rem;
+}
+.pd-qty-controls {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.pd-qty-btn {
+    background: #f8f6f1;
+    border: none;
+    width: 36px;
+    height: 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--brand-dark);
+    transition: background .15s;
+}
+.pd-qty-btn:hover { background: #ece9e1; }
+.pd-qty-input {
+    width: 52px;
+    height: 40px;
+    border: none;
+    border-left: 1.5px solid #e0ddd5;
+    border-right: 1.5px solid #e0ddd5;
+    text-align: center;
+    font-weight: 600;
+    font-size: .95rem;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.pd-qty-input::-webkit-outer-spin-button,
+.pd-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.pd-btn-cart {
+    flex: 1;
+    background: var(--brand-dark);
+    color: #fff;
+    border: none;
+    padding: .7rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s, transform .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+}
+.pd-btn-cart:hover { background: #2c2c2c; transform: translateY(-1px); }
+
+.pd-btn-checkout {
+    width: 100%;
+    background: #065f46;
+    color: #fff;
+    border: none;
+    padding: .7rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s, transform .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+}
+.pd-btn-checkout:hover { background: #047857; transform: translateY(-1px); }
+
+.pd-btn-wishlist {
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid #fca5a5;
+    color: #dc2626;
+    padding: .65rem 1rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+.pd-btn-wishlist:hover,
+.pd-btn-wishlist[data-wishlisted="true"] {
+    background: #fff1f2;
+    border-color: #dc2626;
+}
+
+.pd-out-of-stock-msg {
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    font-size: .85rem;
+    font-weight: 500;
+    margin-bottom: .75rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.pd-btn-back {
+    display: block;
+    text-align: center;
+    border: 1.5px solid #e0ddd5;
+    color: #888;
+    padding: .6rem 1rem;
+    border-radius: 8px;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-decoration: none;
+    transition: border-color .2s, color .2s;
+}
+.pd-btn-back:hover { border-color: var(--brand-dark); color: var(--brand-dark); }
+
+/* ── Sidebar Cards ── */
+.pd-sidebar-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #ece9e1;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+}
+.pd-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f0ede6;
+    background: #faf9f6;
+}
+.pd-sidebar-icon { font-size: 1rem; }
+.pd-sidebar-title { font-size: .9rem; font-weight: 700; color: var(--brand-dark); margin: 0; letter-spacing: .3px; }
+.pd-sidebar-body { padding: 1.25rem; }
+
+.pd-seller-name { font-weight: 700; font-size: 1rem; color: var(--brand-dark); margin-bottom: .3rem; }
+.pd-seller-tagline { font-size: .83rem; color: #888; margin-bottom: .5rem; line-height: 1.5; }
+.pd-seller-rating { display: flex; align-items: center; }
+
+/* ── Alerts ── */
+.pd-alert {
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    font-size: .83rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+.pd-alert-info    { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.pd-alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+/* ── Review form ── */
+.pd-review-form { margin-bottom: 1.25rem; }
+.pd-review-form-title { font-weight: 700; font-size: .9rem; color: var(--brand-dark); margin-bottom: .75rem; }
+
+.pd-star-select { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: .2rem; }
+.pd-star-radio { display: none; }
+.pd-star-label {
+    font-size: 1.6rem;
+    color: #d1d5db;
+    cursor: pointer;
+    transition: color .15s;
+}
+.pd-star-radio:checked ~ .pd-star-label,
+.pd-star-label:hover,
+.pd-star-label:hover ~ .pd-star-label { color: #f59e0b; }
+
+.pd-review-textarea {
+    width: 100%;
+    border: 1.5px solid #e0ddd5;
+    border-radius: 8px;
+    padding: .65rem .85rem;
+    font-size: .85rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color .2s;
+    margin-bottom: .75rem;
+    font-family: inherit;
+}
+.pd-review-textarea:focus { border-color: var(--brand-accent); }
+
+.pd-btn-review {
+    background: var(--brand-dark);
+    color: #fff;
+    border: none;
+    padding: .55rem 1.25rem;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: background .2s;
+}
+.pd-btn-review:hover { background: #2c2c2c; }
+
+/* ── Reviews list ── */
+.pd-reviews-list { display: flex; flex-direction: column; gap: 1rem; margin-top: .5rem; }
+.pd-review-item {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f0ede6;
+}
+.pd-review-item:last-child { border-bottom: none; padding-bottom: 0; }
+.pd-review-header { display: flex; align-items: center; gap: .65rem; margin-bottom: .4rem; }
+.pd-review-avatar {
+    width: 32px; height: 32px;
+    background: var(--brand-dark);
+    color: var(--brand-accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; flex-shrink: 0;
+}
+.pd-review-meta { flex: 1; }
+.pd-review-username { font-weight: 600; font-size: .85rem; color: var(--brand-dark); display: block; }
+.pd-review-date { font-size: .75rem; color: #aaa; }
+.pd-review-stars { display: flex; gap: 1px; }
+.pd-review-comment { font-size: .85rem; color: #555; line-height: 1.6; margin: 0; }
+.pd-no-reviews { font-size: .85rem; color: #aaa; text-align: center; padding: 1rem 0; margin: 0; }
 </style>
+
+<script>
+function adjustQty(delta) {
+    const input = document.getElementById('qty-input')
+    if (!input) return
+    const max = parseInt(input.max) || 99
+    const min = parseInt(input.min) || 1
+    input.value = Math.min(max, Math.max(min, parseInt(input.value || 1) + delta))
+    // Keep buy-now qty in sync
+    const buyNowQty = document.getElementById('buy-now-qty')
+    if (buyNowQty) buyNowQty.value = input.value
+}
+
+function goToSlide(index) {
+    const carousel = document.getElementById('pdCarousel')
+    if (!carousel) return
+    bootstrap.Carousel.getOrCreateInstance(carousel).to(index)
+    document.querySelectorAll('.pd-thumb').forEach((t, i) => t.classList.toggle('active', i === index))
+}
+
+// Sync thumbnail active state with carousel
+const pdCarousel = document.getElementById('pdCarousel')
+if (pdCarousel) {
+    pdCarousel.addEventListener('slid.bs.carousel', e => {
+        document.querySelectorAll('.pd-thumb').forEach((t, i) => t.classList.toggle('active', i === e.to))
+    })
+}
+</script>
+
 {% endblock %}

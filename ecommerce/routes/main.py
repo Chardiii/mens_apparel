@@ -1,12 +1,16 @@
 from flask import Blueprint, render_template, redirect, url_for
 from flask_login import current_user
-from models import Order, OrderStatus
+from models import Order, OrderStatus, Product
+from routes.products import CATEGORIES
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    return render_template('index.html')
+    featured = Product.query.filter_by(is_active=True)\
+        .order_by(Product.rating.desc(), Product.review_count.desc())\
+        .limit(8).all()
+    return render_template('index.html', featured=featured, categories=CATEGORIES)
 
 @main_bp.route('/dashboard')
 def dashboard():
@@ -35,15 +39,8 @@ def dashboard():
                                completed=completed)
 
     all_orders = Order.query.filter_by(buyer_id=current_user.id)
-    stats = {
-        'total': all_orders.count(),
-        'pending': all_orders.filter_by(status=OrderStatus.PENDING.value).count(),
-        'active': all_orders.filter(
-            Order.status.in_([OrderStatus.VERIFIED.value, OrderStatus.ASSIGNED.value, OrderStatus.SHIPPED.value])
-        ).count(),
-        'delivered': all_orders.filter_by(status=OrderStatus.DELIVERED.value).count()
-    }
-    return render_template('buyer_dashboard.html', stats=stats)
+    # Buyers go to index, not a separate dashboard
+    return redirect(url_for('main.index'))
 
 @main_bp.route('/about')
 def about():
