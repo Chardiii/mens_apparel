@@ -297,7 +297,107 @@
         .sel-page-btn:hover { background: #f3f4f6; color: #111827; }
         .sel-page-btn.active { background: #111827; color: #fff; border-color: #111827; }
 
-        /* ── Toast ── */
+        /* ── Notification Bell ── */
+        .sel-notif-wrap {
+            position: relative;
+        }
+        .sel-notif-btn {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1.1rem;
+            transition: background .15s, border-color .15s;
+            position: relative;
+        }
+        .sel-notif-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+        .sel-notif-btn.active { background: #fefce8; border-color: #fde68a; }
+        .sel-notif-badge {
+            position: absolute; top: -5px; right: -5px;
+            background: #ef4444; color: #fff;
+            font-size: .6rem; font-weight: 800;
+            min-width: 18px; height: 18px;
+            border-radius: 999px; padding: 0 4px;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid #fff;
+            display: none;
+        }
+        .sel-notif-panel {
+            position: absolute; top: calc(100% + 10px); right: 0;
+            width: 360px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+            z-index: 999;
+            display: none;
+            overflow: hidden;
+        }
+        .sel-notif-panel.open { display: block; }
+        .sel-notif-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .9rem 1.1rem .75rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .sel-notif-header-title {
+            font-size: .88rem; font-weight: 800; color: #111827;
+        }
+        .sel-notif-header-clear {
+            font-size: .72rem; font-weight: 600; color: #9ca3af;
+            background: none; border: none; cursor: pointer;
+            padding: 0; transition: color .15s;
+        }
+        .sel-notif-header-clear:hover { color: #374151; }
+        .sel-notif-list {
+            max-height: 400px; overflow-y: auto;
+        }
+        .sel-notif-list::-webkit-scrollbar { width: 4px; }
+        .sel-notif-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+        .sel-notif-item {
+            display: flex; align-items: flex-start; gap: .75rem;
+            padding: .85rem 1.1rem;
+            border-bottom: 1px solid #f9fafb;
+            text-decoration: none;
+            transition: background .12s;
+            cursor: pointer;
+        }
+        .sel-notif-item:hover { background: #f9fafb; }
+        .sel-notif-item:last-child { border-bottom: none; }
+        .sel-notif-dot {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0; margin-top: .1rem;
+        }
+        .sel-notif-body { flex: 1; min-width: 0; }
+        .sel-notif-title {
+            font-size: .82rem; font-weight: 700; color: #111827;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sel-notif-text {
+            font-size: .75rem; color: #6b7280; margin-top: .15rem;
+            line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .sel-notif-time {
+            font-size: .68rem; color: #9ca3af; margin-top: .3rem;
+            white-space: nowrap;
+        }
+        .sel-notif-empty {
+            padding: 2.5rem 1rem; text-align: center;
+            color: #9ca3af; font-size: .83rem;
+        }
+        .sel-notif-footer {
+            padding: .65rem 1.1rem;
+            border-top: 1px solid #f3f4f6;
+            text-align: center;
+        }
+        .sel-notif-footer a {
+            font-size: .75rem; font-weight: 600; color: #6b7280;
+            text-decoration: none; transition: color .15s;
+        }
+        .sel-notif-footer a:hover { color: #111827; }
         .toast-container { z-index: 9999; }
         .toast { min-width: 280px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
         .toast-success { background: #065f46; color: #fff; }
@@ -396,6 +496,27 @@
                         {% endfor %}
                     {% endwith %}
                 </div>
+
+                {# ── Notification Bell ── #}
+                <div class="sel-notif-wrap" id="notifWrap">
+                    <button class="sel-notif-btn" id="notifBtn" onclick="toggleNotif()" title="Notifications">
+                        🔔
+                        <span class="sel-notif-badge" id="notifBadge"></span>
+                    </button>
+                    <div class="sel-notif-panel" id="notifPanel">
+                        <div class="sel-notif-header">
+                            <span class="sel-notif-header-title">🔔 Notifications</span>
+                            <button class="sel-notif-header-clear" onclick="clearNotifs()">Mark all read</button>
+                        </div>
+                        <div class="sel-notif-list" id="notifList">
+                            <div class="sel-notif-empty">Loading…</div>
+                        </div>
+                        <div class="sel-notif-footer">
+                            <a href="{{ url_for('products.seller_orders') }}">View all orders →</a>
+                        </div>
+                    </div>
+                </div>
+
                 <a href="{{ url_for('auth.profile') }}" class="sel-admin-pill">
                     <div class="sel-admin-avatar">{{ current_user.username[0].upper() }}</div>
                     {{ current_user.shop_name or current_user.username }}
@@ -412,6 +533,78 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.querySelectorAll('.toast').forEach(el => new bootstrap.Toast(el, {delay:4000}).show())
+
+        // ── Notification System ──
+        let notifOpen = false
+
+        function toggleNotif() {
+            notifOpen = !notifOpen
+            const panel = document.getElementById('notifPanel')
+            const btn   = document.getElementById('notifBtn')
+            if (notifOpen) {
+                panel.classList.add('open')
+                btn.classList.add('active')
+            } else {
+                panel.classList.remove('open')
+                btn.classList.remove('active')
+            }
+        }
+
+        function clearNotifs() {
+            // Just hide the badge — backend doesn't track "read" for notifications yet
+            const badge = document.getElementById('notifBadge')
+            badge.style.display = 'none'
+            badge.textContent = ''
+        }
+
+        function loadNotifs() {
+            fetch('{{ url_for("products.seller_notifications") }}')
+                .then(r => r.json())
+                .then(data => {
+                    const list  = document.getElementById('notifList')
+                    const badge = document.getElementById('notifBadge')
+                    const notifs = data.notifications || []
+
+                    if (data.badge > 0) {
+                        badge.textContent = data.badge > 99 ? '99+' : data.badge
+                        badge.style.display = 'flex'
+                    } else {
+                        badge.style.display = 'none'
+                    }
+
+                    if (notifs.length === 0) {
+                        list.innerHTML = '<div class="sel-notif-empty">✅ All caught up!</div>'
+                        return
+                    }
+
+                    list.innerHTML = notifs.map(n => `
+                        <a href="${n.url}" class="sel-notif-item">
+                            <div class="sel-notif-dot" style="background:${n.color}22;color:${n.color};">
+                                ${n.icon}
+                            </div>
+                            <div class="sel-notif-body">
+                                <div class="sel-notif-title">${n.title}</div>
+                                <div class="sel-notif-text">${n.body}</div>
+                                <div class="sel-notif-time">${n.time}</div>
+                            </div>
+                        </a>
+                    `).join('')
+                })
+                .catch(err => console.error('Notif load failed:', err))
+        }
+
+        // Load on page load
+        loadNotifs()
+        // Poll every 30s
+        setInterval(loadNotifs, 30000)
+
+        // Close panel when clicking outside
+        document.addEventListener('click', e => {
+            const wrap = document.getElementById('notifWrap')
+            if (notifOpen && wrap && !wrap.contains(e.target)) {
+                toggleNotif()
+            }
+        })
     </script>
     {% block scripts %}{% endblock %}
 </body>

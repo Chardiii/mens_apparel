@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#f5f5f0;padding:30px;">
+<div style="max-width:520px;margin:auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e0ddd5;">
+
+    {# Header #}
+    <div style="background:#0d0d0d;padding:24px 32px;">
+        <h1 style="color:#c8a96e;margin:0;letter-spacing:3px;font-size:1.4rem;">MODE S7VN</h1>
+    </div>
+
+    <div style="padding:32px;">
+        <p>Hi <strong>{{ username }}</strong>,</p>
+
+        {% if approved %}
+        {# ── Approved ── #}
+        <h2 style="margin-top:0;color:#111827;">Cancellation Approved</h2>
+        <p style="color:#555;">Your cancellation request for order <strong>{{ order_number }}</strong> has been <strong style="color:#065f46;">approved</strong> by the seller.</p>
+
+        <div style="background:#d1fae5;border-radius:8px;padding:20px 24px;margin:20px 0;text-align:center;">
+            <div style="font-size:2rem;margin-bottom:8px;">✅</div>
+            <div style="font-size:1.1rem;font-weight:bold;color:#065f46;">Order Cancelled</div>
+            <div style="font-size:.85rem;color:#047857;margin-top:.4rem;">Stock has been restored.</div>
+        </div>
+
+        {% if cancel_reason %}
+        <div style="background:#f9fafb;border-left:4px solid #c8a96e;border-radius:4px;padding:12px 16px;margin:16px 0;">
+            <div style="font-size:.78rem;color:#6b7280;font-weight:600;letter-spacing:.5px;margin-bottom:.3rem;">YOUR REASON</div>
+            <div style="font-size:.88rem;color:#374151;">{{ cancel_reason }}</div>
+        </div>
+        {% endif %}
+
+        <p style="color:#555;font-size:.9rem;">No payment was collected. If you have any questions, feel free to contact the seller.</p>
+
+        {% else %}
+        {# ── Rejected ── #}
+        <h2 style="margin-top:0;color:#111827;">Cancellation Request Rejected</h2>
+        <p style="color:#555;">Your cancellation request for order <strong>{{ order_number }}</strong> has been <strong style="color:#991b1b;">rejected</strong> by the seller.</p>
+
+        <div style="background:#fee2e2;border-radius:8px;padding:20px 24px;margin:20px 0;text-align:center;">
+            <div style="font-size:2rem;margin-bottom:8px;">❌</div>
+            <div style="font-size:1.1rem;font-weight:bold;color:#991b1b;">Request Rejected</div>
+            <div style="font-size:.85rem;color:#b91c1c;margin-top:.4rem;">Your order will continue as normal.</div>
+        </div>
+
+        {% if rejection_reason %}
+        <div style="background:#f9fafb;border-left:4px solid #dc2626;border-radius:4px;padding:12px 16px;margin:16px 0;">
+            <div style="font-size:.78rem;color:#6b7280;font-weight:600;letter-spacing:.5px;margin-bottom:.3rem;">SELLER'S RESPONSE</div>
+            <div style="font-size:.88rem;color:#374151;">{{ rejection_reason }}</div>
+        </div>
+        {% endif %}
+
+        <p style="color:#555;font-size:.9rem;">Your order is still active. If you believe this is an error, please message the seller directly.</p>
+        {% endif %}
+
+        {# Order details table #}
+        <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:.88rem;">
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:8px 0;color:#6b7280;">Order Number</td>
+                <td style="padding:8px 0;font-weight:600;text-align:right;">{{ order_number }}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:8px 0;color:#6b7280;">Order Total</td>
+                <td style="padding:8px 0;font-weight:600;text-align:right;">₱{{ "%.2f"|format(total) }}</td>
+            </tr>
+        </table>
+
+        <div style="text-align:center;margin:28px 0;">
+            <a href="{{ order_url }}"
+               style="background:#0d0d0d;color:#c8a96e;padding:14px 32px;border-radius:6px;
+                      text-decoration:none;font-weight:bold;letter-spacing:1px;">
+                View Order
+            </a>
+        </div>
+    </div>
+
+    <div style="background:#f5f5f0;padding:16px 32px;text-align:center;">
+        <p style="color:#aaa;font-size:.8rem;margin:0;">&copy; 2024 Mode S7vn. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

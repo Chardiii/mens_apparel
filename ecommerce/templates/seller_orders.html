@@ -76,6 +76,7 @@
                             </button>
                         </form>
                         <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                            <input type="hidden" name="cancel_reason" value="Cancelled by seller">
                             <button type="submit" class="sel-btn sel-btn-danger"
                                     onclick="return confirm('Cancel this order?')">
                                 Cancel
@@ -83,9 +84,24 @@
                         </form>
                         {% elif s == 'verified' %}
                         <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                            <input type="hidden" name="cancel_reason" value="Cancelled by seller">
                             <button type="submit" class="sel-btn sel-btn-danger"
                                     onclick="return confirm('Cancel this verified order?')">
                                 Cancel
+                            </button>
+                        </form>
+                        {% elif s == 'cancel_requested' %}
+                        <form method="POST" action="{{ url_for('orders.approve_cancel', order_id=order.id) }}">
+                            <button type="submit" class="sel-btn sel-btn-danger"
+                                    onclick="return confirm('Approve cancellation and restore stock for {{ order.order_number }}?')">
+                                ✓ Approve Cancel
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('orders.reject_cancel', order_id=order.id) }}">
+                            <input type="hidden" name="rejection_reason" value="">
+                            <button type="submit" class="sel-btn sel-btn-ghost"
+                                    onclick="return confirm('Reject cancellation request?')">
+                                ✗ Reject
                             </button>
                         </form>
                         {% endif %}

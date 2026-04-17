@@ -28,12 +28,13 @@ def send_order_status_email(order):
             order_url=url_for('orders.order_detail', order_id=order.id, _external=True)
         )
         subject_map = {
-            'pending':   'Order Received',
-            'verified':  'Order Verified by Seller',
-            'assigned':  'Rider Assigned to Your Order',
-            'shipped':   'Your Order is Out for Delivery',
-            'delivered': 'Your Order Has Been Delivered',
-            'cancelled': 'Your Order Has Been Cancelled',
+            'pending':          'Order Received',
+            'verified':         'Order Verified by Seller',
+            'assigned':         'Rider Assigned to Your Order',
+            'shipped':          'Your Order is Out for Delivery',
+            'delivered':        'Your Order Has Been Delivered',
+            'cancelled':        'Your Order Has Been Cancelled',
+            'cancel_requested': 'Cancellation Request Received',
         }
         subject = f"Mode S7vn — {subject_map.get(order.status, 'Order Update')} ({order.order_number})"
         msg = MailMessage(subject, recipients=[buyer.email], html=html)
@@ -500,33 +501,158 @@ def verify_order(order_id):
 @orders_bp.route('/<int:order_id>/cancel', methods=['POST'])
 @login_required
 def cancel_order(order_id):
-    """Seller or buyer can cancel a pending order."""
+    """Buyer requests cancellation or seller directly cancels."""
     order = Order.query.get_or_404(order_id)
+    reason = request.form.get('cancel_reason', '').strip()
 
-    is_buyer = order.buyer_id == current_user.id and order.status == OrderStatus.PENDING.value
-    is_seller = order.seller_id == current_user.id and order.status in [OrderStatus.PENDING.value, OrderStatus.VERIFIED.value]
+    is_buyer = order.buyer_id == current_user.id
+    is_seller = order.seller_id == current_user.id
 
     if not (is_buyer or is_seller or current_user.is_admin()):
         flash('Not authorized to cancel this order.', 'danger')
         return redirect(url_for('orders.order_detail', order_id=order_id))
 
-    # Restore stock at variant level
+    # Buyer cannot cancel if order is already shipped, assigned, or delivered
+    if is_buyer and order.status in [OrderStatus.SHIPPED.value, OrderStatus.ASSIGNED.value, OrderStatus.DELIVERED.value]:
+        flash('Cannot cancel order — it is already out for delivery or delivered.', 'danger')
+        return redirect(url_for('orders.order_detail', order_id=order_id))
+
+    # Buyer requests cancellation (needs seller approval)
+    if is_buyer and order.status in [OrderStatus.PENDING.value, OrderStatus.VERIFIED.value]:
+        if not reason:
+            flash('Please provide a reason for cancellation.', 'warning')
+            return redirect(url_for('orders.order_detail', order_id=order_id))
+        order.status = OrderStatus.CANCEL_REQUESTED.value
+        order.cancel_reason = reason
+        order.cancel_requested_by = 'buyer'
+        order.cancel_status = 'pending'
+        db.session.commit()
+        flash(f'Cancellation request submitted. Waiting for seller approval.', 'info')
+        return redirect(url_for('orders.order_detail', order_id=order_id))
+
+    # Seller directly cancels (immediate, no approval needed)
+    if is_seller and order.status in [OrderStatus.PENDING.value, OrderStatus.VERIFIED.value]:
+        if not reason:
+            reason = 'Cancelled by seller'
+        _restore_stock(order)
+        order.status = OrderStatus.CANCELLED.value
+        order.cancel_reason = reason
+        order.cancel_requested_by = 'seller'
+        order.cancel_status = 'approved'
+        db.session.commit()
+        send_order_status_email(order)
+        flash(f'Order {order.order_number} cancelled. Stock restored.', 'info')
+        return redirect(url_for('products.seller_orders'))
+
+    # Admin can cancel anytime
+    if current_user.is_admin():
+        _restore_stock(order)
+        order.status = OrderStatus.CANCELLED.value
+        order.cancel_reason = reason or 'Cancelled by admin'
+        order.cancel_requested_by = 'admin'
+        order.cancel_status = 'approved'
+        db.session.commit()
+        send_order_status_email(order)
+        flash(f'Order {order.order_number} cancelled. Stock restored.', 'info')
+        return redirect(url_for('orders.order_detail', order_id=order_id))
+
+    flash('Cannot cancel this order at this stage.', 'warning')
+    return redirect(url_for('orders.order_detail', order_id=order_id))
+
+
+@orders_bp.route('/<int:order_id>/approve-cancel', methods=['POST'])
+@login_required
+def approve_cancel(order_id):
+    """Seller approves buyer's cancellation request."""
+    if not current_user.is_seller():
+        flash('Only sellers can approve cancellations.', 'danger')
+        return redirect(url_for('main.index'))
+
+    order = Order.query.get_or_404(order_id)
+
+    if order.seller_id != current_user.id:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('products.seller_orders'))
+
+    if order.status != OrderStatus.CANCEL_REQUESTED.value:
+        flash('No pending cancellation request.', 'warning')
+        return redirect(url_for('orders.order_detail', order_id=order_id))
+
+    _restore_stock(order)
+    order.status = OrderStatus.CANCELLED.value
+    order.cancel_status = 'approved'
+    db.session.commit()
+    _send_cancel_decision_email(order, approved=True)
+    flash(f'Cancellation approved. Stock restored for order {order.order_number}.', 'success')
+    return redirect(url_for('products.seller_orders'))
+
+
+@orders_bp.route('/<int:order_id>/reject-cancel', methods=['POST'])
+@login_required
+def reject_cancel(order_id):
+    """Seller rejects buyer's cancellation request."""
+    if not current_user.is_seller():
+        flash('Only sellers can reject cancellations.', 'danger')
+        return redirect(url_for('main.index'))
+
+    order = Order.query.get_or_404(order_id)
+
+    if order.seller_id != current_user.id:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('products.seller_orders'))
+
+    if order.status != OrderStatus.CANCEL_REQUESTED.value:
+        flash('No pending cancellation request.', 'warning')
+        return redirect(url_for('orders.order_detail', order_id=order_id))
+
+    rejection_reason = request.form.get('rejection_reason', '').strip()
+    order.status = OrderStatus.PENDING.value
+    order.cancel_status = 'rejected'
+    db.session.commit()
+    _send_cancel_decision_email(order, approved=False, rejection_reason=rejection_reason)
+    flash(f'Cancellation request rejected for order {order.order_number}.', 'info')
+    return redirect(url_for('products.seller_orders'))
+
+
+def _send_cancel_decision_email(order, approved, rejection_reason=''):
+    """Email the buyer when seller approves or rejects their cancel request."""
+    try:
+        from flask_mail import Message as MailMessage
+        from app import mail
+        buyer = order.buyer
+        if not buyer or not buyer.email:
+            return
+        html = render_template(
+            'email/cancel_decision.html',
+            username=buyer.username,
+            order_number=order.order_number,
+            total=order.total_amount,
+            approved=approved,
+            cancel_reason=order.cancel_reason,
+            rejection_reason=rejection_reason,
+            order_url=url_for('orders.order_detail', order_id=order.id, _external=True)
+        )
+        subject = (
+            f"Mode S7vn — Cancellation Approved ({order.order_number})"
+            if approved else
+            f"Mode S7vn — Cancellation Request Rejected ({order.order_number})"
+        )
+        msg = MailMessage(subject, recipients=[buyer.email], html=html)
+        mail.send(msg)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f'Cancel decision email failed: {e}')
+
+
+def _restore_stock(order):
+    """Restore stock for all items in the order at variant level."""
     for item in order.items:
         if item.variant_id and item.variant:
             item.variant.stock += item.quantity
-            item.product.stock = min(item.product.stock + item.quantity,
-                                     sum(v.stock for v in item.product.variants.all()))
+            # Sync parent stock: sum all variant stocks
+            item.product.stock = sum(v.stock for v in item.product.variants.all())
         else:
             item.product.stock += item.quantity
-
-    order.status = OrderStatus.CANCELLED.value
-    db.session.commit()
-    send_order_status_email(order)
-    flash(f'Order {order.order_number} cancelled.', 'info')
-
-    if current_user.is_seller():
-        return redirect(url_for('products.seller_orders'))
-    return redirect(url_for('orders.my_orders'))
 
 
 # ── Rider delivery actions ────────────────────────────────────────────────────

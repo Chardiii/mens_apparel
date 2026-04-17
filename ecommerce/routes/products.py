@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from models import db, Product, ProductImage, ProductVariant, Order, OrderItem, Review
+from models import Message
 from sqlalchemy import func
 import os
 import uuid
@@ -298,6 +299,120 @@ def seller_dashboard():
                            inv_search=inv_search,
                            inv_stock_filter=inv_stock_filter,
                            inv_cat_filter=inv_cat_filter)
+
+
+@products_bp.route('/seller/notifications')
+@login_required
+def seller_notifications():
+    """JSON endpoint — returns the seller's recent notifications."""
+    from flask import jsonify
+    from models import Message, Review
+    from datetime import datetime, timedelta
+
+    if not current_user.is_seller():
+        return jsonify([]), 403
+
+    notifs = []
+    cutoff = datetime.utcnow() - timedelta(days=14)  # only last 14 days
+
+    # 1. New / pending orders
+    new_orders = Order.query.filter(
+        Order.seller_id == current_user.id,
+        Order.status == 'pending',
+        Order.created_at >= cutoff
+    ).order_by(Order.created_at.desc()).limit(10).all()
+    for o in new_orders:
+        notifs.append({
+            'type': 'order',
+            'icon': '📬',
+            'color': '#f59e0b',
+            'title': f'New order {o.order_number}',
+            'body': f'₱{o.total_amount:,.2f} — awaiting your verification',
+            'url': f'/orders/{o.id}',
+            'time': o.created_at.strftime('%b %d, %H:%M'),
+            'ts': o.created_at.timestamp()
+        })
+
+    # 2. Cancel requests
+    cancel_reqs = Order.query.filter(
+        Order.seller_id == current_user.id,
+        Order.status == 'cancel_requested',
+        Order.updated_at >= cutoff
+    ).order_by(Order.updated_at.desc()).limit(10).all()
+    for o in cancel_reqs:
+        notifs.append({
+            'type': 'cancel',
+            'icon': '⚠️',
+            'color': '#ef4444',
+            'title': f'Cancel request — {o.order_number}',
+            'body': o.cancel_reason[:80] if o.cancel_reason else 'Buyer requested cancellation',
+            'url': f'/orders/{o.id}',
+            'time': o.updated_at.strftime('%b %d, %H:%M'),
+            'ts': o.updated_at.timestamp()
+        })
+
+    # 3. New reviews on seller's products
+    new_reviews = db.session.query(Review).join(Product).filter(
+        Product.seller_id == current_user.id,
+        Review.created_at >= cutoff
+    ).order_by(Review.created_at.desc()).limit(10).all()
+    for r in new_reviews:
+        stars = '★' * r.rating + '☆' * (5 - r.rating)
+        notifs.append({
+            'type': 'review',
+            'icon': '⭐',
+            'color': '#8b5cf6',
+            'title': f'New review on {r.product.name}',
+            'body': f'{stars}  {(r.comment or "")[:60]}',
+            'url': f'/products/seller/reviews',
+            'time': r.created_at.strftime('%b %d, %H:%M'),
+            'ts': r.created_at.timestamp()
+        })
+
+    # 4. Unread messages
+    unread_msgs = Message.query.filter(
+        Message.receiver_id == current_user.id,
+        Message.is_read == False,
+        Message.created_at >= cutoff
+    ).order_by(Message.created_at.desc()).limit(10).all()
+    for m in unread_msgs:
+        notifs.append({
+            'type': 'message',
+            'icon': '💬',
+            'color': '#3b82f6',
+            'title': f'Message from {m.sender.username}',
+            'body': m.body[:80],
+            'url': f'/messages/thread/{m.sender_id}',
+            'time': m.created_at.strftime('%b %d, %H:%M'),
+            'ts': m.created_at.timestamp()
+        })
+
+    # 5. Low stock alerts (not time-based, always relevant)
+    low_stock = Product.query.filter(
+        Product.seller_id == current_user.id,
+        Product.stock > 0,
+        Product.stock <= 5,
+        Product.is_active == True
+    ).order_by(Product.stock.asc()).limit(5).all()
+    for p in low_stock:
+        notifs.append({
+            'type': 'stock',
+            'icon': '📦',
+            'color': '#f59e0b',
+            'title': f'Low stock: {p.name}',
+            'body': f'Only {p.stock} unit{"s" if p.stock != 1 else ""} remaining',
+            'url': f'/products/seller/edit/{p.id}',
+            'time': 'Stock alert',
+            'ts': 0
+        })
+
+    # Sort by timestamp descending, stock alerts go last
+    notifs.sort(key=lambda x: x['ts'], reverse=True)
+
+    # Badge count = pending orders + cancel requests + unread messages
+    badge = len(new_orders) + len(cancel_reqs) + len(unread_msgs)
+
+    return jsonify({'notifications': notifs[:20], 'badge': badge})
 
 
 @products_bp.route('/seller/orders')

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User, UserRole
+from extensions import limiter
 from datetime import datetime, timedelta
 import os, uuid, re
 
@@ -188,6 +189,8 @@ def verify_email(token):
 # ── Forgot password ───────────────────────────────────────────────────────────
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit('5 per minute; 10 per hour', methods=['POST'],
+               error_message='Too many password reset requests. Please wait before trying again.')
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
@@ -253,6 +256,8 @@ def reset_password(token):
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute; 30 per hour', methods=['POST'],
+               error_message='Too many login attempts. Please wait before trying again.')
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))

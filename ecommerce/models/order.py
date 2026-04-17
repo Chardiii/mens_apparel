@@ -3,12 +3,13 @@ from datetime import datetime
 from enum import Enum
 
 class OrderStatus(Enum):
-    PENDING = 'pending'       # Buyer placed order
-    VERIFIED = 'verified'     # Seller verified & ready to hand off
-    ASSIGNED = 'assigned'     # Rider assigned
-    SHIPPED = 'shipped'       # Rider picked up
-    DELIVERED = 'delivered'   # Delivered to buyer
+    PENDING = 'pending'           # Buyer placed order
+    VERIFIED = 'verified'         # Seller verified & ready to hand off
+    ASSIGNED = 'assigned'         # Rider assigned
+    SHIPPED = 'shipped'           # Rider picked up
+    DELIVERED = 'delivered'       # Delivered to buyer
     CANCELLED = 'cancelled'
+    CANCEL_REQUESTED = 'cancel_requested'  # Buyer requested cancel, awaiting seller
 
 class Order(db.Model):
     __tablename__ = 'orders'
@@ -29,6 +30,11 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     delivered_at = db.Column(db.DateTime)
+
+    # Cancellation tracking
+    cancel_reason       = db.Column(db.String(500))
+    cancel_requested_by = db.Column(db.String(10))   # 'buyer' or 'seller'
+    cancel_status       = db.Column(db.String(10))   # 'pending', 'approved', 'rejected'
     
     items = db.relationship('OrderItem', backref='order', lazy='dynamic', cascade='all, delete-orphan')
     payment = db.relationship('Payment', backref='order', uselist=False, cascade='all, delete-orphan')

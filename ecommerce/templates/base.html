@@ -241,7 +241,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: rgba(8,10,18,0.9) !important; backdrop-filter: blur(16px);">
         <div class="container">
             <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
-                <i class="fas fa-robot" style="font-size: 1.4rem; margin-right: 6px; color: #FFD966;"></i> 
+                <i class="fas fa-cloth" style="font-size: 1.4rem; margin-right: 6px; color: #FFD966;"></i> 
                 Mode S7vn
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Toggle navigation">
@@ -253,7 +253,7 @@
                         <a class="nav-link" href="{{ url_for('products.list_products') }}"><i class="fas fa-tshirt"></i> Products</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.about') }}"><i class="fas fa-crown"></i> About</a>
+                        <a class="nav-link" href="{{ url_for('main.about') }}"><i class="fa fa-exclamation-circle"></i> About</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.contact') }}"><i class="fas fa-envelope"></i> Contact</a>
@@ -295,7 +295,7 @@
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" id="userDropdown">
-                                <i class="fas fa-user-astronaut"></i> {{ current_user.username }}
+                                <i class="fa fa-user"></i> {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fas fa-id-card"></i> Profile</a></li>
@@ -331,7 +331,7 @@
                             {% if category == 'success' %}✨
                             {% elif category == 'danger' %}⚠️
                             {% elif category == 'warning' %}🔮
-                            {% else %}💿{% endif %}
+                            {% else %}{% endif %}
                         </span>
                         <span>{{ message }}</span>
                     </div>
@@ -357,9 +357,9 @@
         <div class="container">
             <p class="mb-2">
                 <i class="fas fa-compact-disc"></i> MODE S7VN • Y2K MENS ARCHIVE 
-                <i class="fas fa-crown ms-2 me-1"></i> EST. 2024
+                <i class="fas fa-crown ms-2 me-1"></i> EST. 2026
             </p>
-            <p class="mb-0 small opacity-50">&copy; 2024 Mode S7vn. All rights reserved. | digital couture • cyberwear</p>
+            <p class="mb-0 small opacity-50">&copy; 2026 Mode S7vn. All rights reserved. | digital couture • cyberwear</p>
         </div>
     </footer>
 

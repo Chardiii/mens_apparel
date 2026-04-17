@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_login import LoginManager
 from flask_mail import Mail
+from extensions import limiter
 from config import config
 from models import db, User
 from routes import auth_bp, main_bp, products_bp, orders_bp, admin_bp, wishlist_bp, messages_bp
@@ -14,6 +15,7 @@ def create_app(config_name='development'):
 
     db.init_app(app)
     mail.init_app(app)
+    limiter.init_app(app)
 
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -38,6 +40,12 @@ def create_app(config_name='development'):
     @app.errorhandler(404)
     def not_found(error):
         return 'Page not found', 404
+
+    @app.errorhandler(429)
+    def rate_limited(error):
+        from flask import flash, redirect, url_for, request
+        flash(str(error.description), 'danger')
+        return redirect(request.referrer or url_for('main.index'))
 
     @app.errorhandler(500)
     def internal_error(error):

@@ -6,7 +6,7 @@
 {% set s = order.status %}
 
 {# ── Status timeline (shown to everyone, most useful for buyers) ── #}
-{% if s != 'cancelled' %}
+{% if s not in ['cancelled', 'cancel_requested'] %}
 {% set steps = [
     ('pending',   '🛒', 'Order Placed',      'Waiting for seller to confirm.'),
     ('verified',  '✅', 'Seller Confirmed',  'Seller has packed your order.'),
@@ -103,6 +103,25 @@
 
 </div>
 {% else %}
+{# Cancelled / cancel_requested state #}
+{% if s == 'cancel_requested' %}
+<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;
+            padding:1.5rem 2rem;margin-bottom:1.5rem;
+            display:flex;align-items:center;gap:1rem;">
+    <span style="font-size:2rem;">⏳</span>
+    <div>
+        <div style="font-weight:700;color:#c2410c;font-size:1rem;">Cancellation Requested</div>
+        <div style="font-size:.82rem;color:#92400e;margin-top:.2rem;">
+            {{ order.order_number }} · Awaiting seller review
+        </div>
+        {% if order.cancel_reason %}
+        <div style="font-size:.8rem;color:#78350f;margin-top:.3rem;">
+            Reason: {{ order.cancel_reason }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
 {# Cancelled state #}
 <div style="background:#fff1f2;border:1px solid #fecaca;border-radius:16px;
             padding:1.5rem 2rem;margin-bottom:1.5rem;
@@ -113,8 +132,19 @@
         <div style="font-size:.82rem;color:#dc2626;margin-top:.2rem;">
             {{ order.order_number }} · Placed {{ order.created_at.strftime('%B %d, %Y') }}
         </div>
+        {% if order.cancel_reason %}
+        <div style="font-size:.8rem;color:#7f1d1d;margin-top:.3rem;">
+            Reason: {{ order.cancel_reason }}
+        </div>
+        {% endif %}
+        {% if order.cancel_requested_by %}
+        <div style="font-size:.75rem;color:#9ca3af;margin-top:.2rem;">
+            Cancelled by: {{ order.cancel_requested_by.capitalize() }}
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 {# ── Main content ── #}
@@ -212,8 +242,63 @@
                     {% endif %}
                 {% endif %}
 
-                {# Seller #}
+                {# Buyer #}
+                {% if current_user.is_buyer() and order.buyer_id == current_user.id %}
+                    {% set cancellable = order.status in ['pending', 'verified'] %}
+                    {% set already_requested = order.status == 'cancel_requested' %}
+                    {% set locked = order.status in ['shipped', 'assigned', 'delivered', 'cancelled'] %}
+
+                    {% if already_requested %}
+                    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;
+                                padding:.75rem 1rem;font-size:.82rem;color:#92400e;">
+                        ⏳ <strong>Cancellation requested.</strong> Waiting for seller to review.
+                        {% if order.cancel_reason %}
+                        <div style="margin-top:.3rem;color:#78350f;">Reason: {{ order.cancel_reason }}</div>
+                        {% endif %}
+                    </div>
+                    {% elif locked %}
+                    <div style="background:#f3f4f6;border-radius:10px;padding:.65rem 1rem;
+                                font-size:.8rem;color:#6b7280;">
+                        🔒 Order cannot be cancelled at this stage.
+                    </div>
+                    {% elif cancellable %}
+                    <button type="button" class="btn btn-outline-danger w-100"
+                            data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        Request Cancellation
+                    </button>
+                    {% endif %}
+
+                    <a href="{{ url_for('messages.thread', partner_id=order.seller_id, order_id=order.id) }}"
+                       class="btn btn-outline-secondary w-100">💬 Message Seller</a>
+                {% endif %}
+
+                {# Seller — approve/reject buyer cancel request #}
                 {% if current_user.is_seller() and order.seller_id == current_user.id %}
+                    {% if order.status == 'cancel_requested' %}
+                    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
+                                padding:.85rem 1rem;margin-bottom:.5rem;">
+                        <div style="font-size:.82rem;font-weight:700;color:#c2410c;margin-bottom:.4rem;">
+                            ⚠️ Buyer requested cancellation
+                        </div>
+                        {% if order.cancel_reason %}
+                        <div style="font-size:.78rem;color:#7c2d12;margin-bottom:.75rem;">
+                            Reason: {{ order.cancel_reason }}
+                        </div>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('orders.approve_cancel', order_id=order.id) }}"
+                              style="margin-bottom:.4rem;">
+                            <button type="submit" class="btn btn-danger w-100"
+                                    onclick="return confirm('Approve cancellation and restore stock?')">
+                                ✓ Approve Cancellation
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-outline-secondary w-100"
+                                data-bs-toggle="modal" data-bs-target="#rejectCancelModal">
+                            ✗ Reject Cancellation
+                        </button>
+                    </div>
+                    {% endif %}
+
                     {% if order.status == 'pending' %}
                     <form method="POST" action="{{ url_for('orders.verify_order', order_id=order.id) }}">
                         <button type="submit" class="btn btn-success w-100"
@@ -221,25 +306,13 @@
                     </form>
                     {% endif %}
                     {% if order.status in ['pending', 'verified'] %}
-                    <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
-                        <button type="submit" class="btn btn-outline-danger w-100"
-                            onclick="return confirm('Cancel this order?')">Cancel Order</button>
-                    </form>
+                    <button type="button" class="btn btn-outline-danger w-100"
+                            data-bs-toggle="modal" data-bs-target="#sellerCancelModal">
+                        Cancel Order
+                    </button>
                     {% endif %}
                     <a href="{{ url_for('messages.thread', partner_id=order.buyer_id, order_id=order.id) }}"
                        class="btn btn-outline-secondary w-100">💬 Message Buyer</a>
-                {% endif %}
-
-                {# Buyer #}
-                {% if current_user.is_buyer() and order.buyer_id == current_user.id %}
-                    {% if order.status == 'pending' %}
-                    <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
-                        <button type="submit" class="btn btn-outline-danger w-100"
-                            onclick="return confirm('Cancel this order?')">Cancel Order</button>
-                    </form>
-                    {% endif %}
-                    <a href="{{ url_for('messages.thread', partner_id=order.seller_id, order_id=order.id) }}"
-                       class="btn btn-outline-secondary w-100">💬 Message Seller</a>
                 {% endif %}
 
                 {# Admin #}
@@ -261,6 +334,89 @@
                    class="btn btn-outline-secondary">← Back to Orders</a>
 
             </div>
+        </div>
+    </div>
+</div>
+
+{# ── Buyer cancel modal ── #}
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Cancellation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                <div class="modal-body">
+                    <p style="font-size:.88rem;color:#6b7280;margin-bottom:1rem;">
+                        Your cancellation request will be sent to the seller for review.
+                        Stock will only be restored if the seller approves.
+                    </p>
+                    <label class="form-label fw-bold">Reason for cancellation <span class="text-danger">*</span></label>
+                    <textarea class="form-control" name="cancel_reason" rows="3"
+                              placeholder="e.g. Changed my mind, found a better deal, etc."
+                              required maxlength="500"></textarea>
+                    <div class="form-text">Max 500 characters</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ── Seller cancel modal ── #}
+<div class="modal fade" id="sellerCancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('orders.cancel_order', order_id=order.id) }}">
+                <div class="modal-body">
+                    <p style="font-size:.88rem;color:#6b7280;margin-bottom:1rem;">
+                        This will immediately cancel the order and restore stock.
+                    </p>
+                    <label class="form-label fw-bold">Reason for cancellation</label>
+                    <textarea class="form-control" name="cancel_reason" rows="3"
+                              placeholder="e.g. Out of stock, unable to fulfill, etc."
+                              maxlength="500"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Cancel Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ── Seller reject cancel modal ── #}
+<div class="modal fade" id="rejectCancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Cancellation Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('orders.reject_cancel', order_id=order.id) }}">
+                <div class="modal-body">
+                    <p style="font-size:.88rem;color:#6b7280;margin-bottom:1rem;">
+                        The order will resume its previous status.
+                    </p>
+                    <label class="form-label fw-bold">Reason for rejection (optional)</label>
+                    <textarea class="form-control" name="rejection_reason" rows="2"
+                              placeholder="e.g. Order already packed, cannot cancel at this stage."
+                              maxlength="300"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Reject Request</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
