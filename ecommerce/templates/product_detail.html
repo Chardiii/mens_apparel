@@ -25,18 +25,18 @@
     <div class="pd-left">
 
         {# Image Card #}
-        <div class="pd-image-card">
+        <div class="pd-image-card" id="pdImageCard">
             {% set images = product.images.all() %}
             {% if images %}
                 {% if images|length > 1 %}
                 <div id="pdCarousel" class="carousel slide h-100" data-bs-ride="carousel">
                     <div class="carousel-inner h-100">
                         {% for img in images %}
-                        <div class="carousel-item h-100 {% if loop.first %}active{% endif %}">
+                        <div class="carousel-item h-100 {% if loop.first %}active{% endif %}"
+                             data-img-src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}">
                             <img src="{{ url_for('static', filename='uploads/' ~ img.image_url) }}"
                                  class="pd-main-img pd-zoomable"
-                                 alt="{{ product.name }}"
-                                 onclick="openLightbox('{{ url_for('static', filename='uploads/' ~ img.image_url) }}')">
+                                 alt="{{ product.name }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -50,8 +50,8 @@
                 {% else %}
                 <img src="{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}"
                      class="pd-main-img pd-zoomable"
-                     alt="{{ product.name }}"
-                     onclick="openLightbox('{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}')">
+                     data-img-src="{{ url_for('static', filename='uploads/' ~ images[0].image_url) }}"
+                     alt="{{ product.name }}">
                 {% endif %}
             {% else %}
             <div class="pd-img-placeholder">
@@ -275,9 +275,10 @@
                     <form method="POST" action="{{ url_for('products.submit_review', product_id=product.id) }}" class="pd-review-form">
                         <p class="pd-review-form-title">Leave a Review</p>
                         <div class="pd-star-select mb-3">
-                            {% for i in range(1, 6) %}
+                            {# Must render 5 down to 1 for the row-reverse CSS trick to work correctly #}
+                            {% for i in range(5, 0, -1) %}
                             <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}" class="pd-star-radio" required>
-                            <label for="star{{ i }}" class="pd-star-label">★</label>
+                            <label for="star{{ i }}" class="pd-star-label" title="{{ i }} star{{ 's' if i != 1 }}">★</label>
                             {% endfor %}
                         </div>
                         <textarea class="pd-review-textarea" name="comment" rows="3"
@@ -954,7 +955,17 @@ if (pdCarousel) {
 }
 
 // ── Lightbox ──
-const lb    = document.getElementById('pd-lightbox')
+// Build overlay and append directly to body so z-index and fixed positioning
+// are never clipped by overflow:hidden on any ancestor.
+const lbOverlay = document.createElement('div')
+lbOverlay.id = 'pd-lightbox'
+lbOverlay.innerHTML = `
+  <button id="pd-lb-close" aria-label="Close">&times;</button>
+  <img id="pd-lightbox-img" src="" alt="Zoomed product image">
+  <span id="pd-lb-hint">Scroll to zoom &nbsp;&middot;&nbsp; Double-click to reset &nbsp;&middot;&nbsp; Esc to close</span>
+`
+document.body.appendChild(lbOverlay)
+
 const lbImg = document.getElementById('pd-lightbox-img')
 let lbScale = 1
 
@@ -962,40 +973,40 @@ function openLightbox(src) {
     lbImg.src = src
     lbScale = 1
     lbImg.style.transform = 'scale(1)'
-    lb.classList.add('open')
+    lbOverlay.classList.add('open')
     document.body.style.overflow = 'hidden'
 }
 
 function closeLightbox() {
-    lb.classList.remove('open')
+    lbOverlay.classList.remove('open')
     document.body.style.overflow = ''
 }
 
-// Close on backdrop click
-lb.addEventListener('click', e => { if (e.target === lb) closeLightbox() })
-
-// Close on Escape
+document.getElementById('pd-lb-close').addEventListener('click', closeLightbox)
+lbOverlay.addEventListener('click', e => { if (e.target === lbOverlay) closeLightbox() })
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox() })
 
-// Scroll to zoom
-lb.addEventListener('wheel', e => {
+lbOverlay.addEventListener('wheel', e => {
     e.preventDefault()
     lbScale = Math.min(4, Math.max(1, lbScale - e.deltaY * 0.001))
     lbImg.style.transform = `scale(${lbScale})`
 }, { passive: false })
 
-// Double-click to reset zoom
 lbImg.addEventListener('dblclick', () => {
     lbScale = lbScale > 1 ? 1 : 2
     lbImg.style.transform = `scale(${lbScale})`
 })
-</script>
 
-{# ── Lightbox overlay ── #}
-<div id="pd-lightbox">
-    <button id="pd-lb-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
-    <img id="pd-lightbox-img" src="" alt="Zoomed product image">
-    <span id="pd-lb-hint">Scroll to zoom &nbsp;&middot;&nbsp; Double-click to reset &nbsp;&middot;&nbsp; Esc to close</span>
-</div>
+// Delegated click: listen on the image card, get src from data-img-src or img.src
+document.getElementById('pdImageCard').addEventListener('click', e => {
+    // Ignore clicks on carousel controls
+    if (e.target.closest('.carousel-control-prev, .carousel-control-next')) return
+    // Find the active image
+    const activeImg = e.currentTarget.querySelector('.carousel-item.active img, img.pd-zoomable')
+    if (!activeImg) return
+    const src = activeImg.dataset.imgSrc || activeImg.src
+    openLightbox(src)
+})
+</script>
 
 {% endblock %}

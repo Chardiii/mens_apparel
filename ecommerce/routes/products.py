@@ -124,6 +124,23 @@ def view_product(product_id):
 
 # ── Review ────────────────────────────────────────────────────────────────────
 
+_BANNED_WORDS = {
+    'fuck','shit','bitch','asshole','bastard','cunt','dick','pussy','cock',
+    'nigger','nigga','faggot','fag','whore','slut','retard','motherfucker',
+    'puta','putang','gago','bobo','tanga','ulol','tarantado','leche','pakshet',
+    'putangina','tangina','kupal','kingina','hindot','jakol','kantot',
+}
+
+def _contains_profanity(text):
+    """Return the first banned word found, or None."""
+    import re
+    words = re.findall(r'[a-z]+', text.lower())
+    for w in words:
+        if w in _BANNED_WORDS:
+            return w
+    return None
+
+
 @products_bp.route('/<int:product_id>/review', methods=['POST'])
 @login_required
 def submit_review(product_id):
@@ -137,22 +154,25 @@ def submit_review(product_id):
         flash('You have already reviewed this product.', 'warning')
         return redirect(url_for('products.view_product', product_id=product_id))
 
-    rating = request.form.get('rating', type=int)
+    rating  = request.form.get('rating', type=int)
     comment = request.form.get('comment', '').strip()
 
     if not rating or not (1 <= rating <= 5):
         flash('Please select a rating between 1 and 5.', 'danger')
         return redirect(url_for('products.view_product', product_id=product_id))
 
+    if comment and _contains_profanity(comment):
+        flash('Your review contains inappropriate language. Please revise it.', 'danger')
+        return redirect(url_for('products.view_product', product_id=product_id))
+
     review = Review(product_id=product_id, reviewer_id=current_user.id,
                     rating=rating, comment=comment)
     db.session.add(review)
 
-    # Recalculate product rating
     db.session.flush()
-    avg = db.session.query(func.avg(Review.rating)).filter_by(product_id=product_id).scalar()
+    avg   = db.session.query(func.avg(Review.rating)).filter_by(product_id=product_id).scalar()
     count = Review.query.filter_by(product_id=product_id).count()
-    product.rating = round(float(avg), 1)
+    product.rating       = round(float(avg), 1)
     product.review_count = count
 
     db.session.commit()
@@ -304,6 +324,64 @@ def seller_toggle_product(product_id):
     product.is_active = not product.is_active
     db.session.commit()
     return redirect(url_for('products.seller_dashboard') + '#inventory')
+
+
+@products_bp.route('/seller/reviews')
+@login_required
+def seller_reviews():
+    if not current_user.is_seller():
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('main.index'))
+    # All reviews across seller's products, newest first
+    reviews = db.session.query(Review).join(Product).filter(
+        Product.seller_id == current_user.id
+    ).order_by(Review.created_at.desc()).all()
+    return render_template('seller_reviews.html', reviews=reviews)
+
+
+@products_bp.route('/seller/reviews/<int:review_id>/toggle-hide', methods=['POST'])
+@login_required
+def seller_toggle_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    if review.product.seller_id != current_user.id:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('products.seller_reviews'))
+    review.is_hidden = not review.is_hidden
+    # Recalculate product rating using only visible reviews
+    product = review.product
+    visible = Review.query.filter_by(product_id=product.id, is_hidden=False).all()
+    if visible:
+        product.rating       = round(sum(r.rating for r in visible) / len(visible), 1)
+        product.review_count = len(visible)
+    else:
+        product.rating       = 0.0
+        product.review_count = 0
+    db.session.commit()
+    action = 'hidden' if review.is_hidden else 'visible'
+    flash(f'Review {action}.', 'success')
+    return redirect(url_for('products.seller_reviews'))
+
+
+@products_bp.route('/seller/reviews/<int:review_id>/delete', methods=['POST'])
+@login_required
+def seller_delete_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    if review.product.seller_id != current_user.id:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('products.seller_reviews'))
+    product = review.product
+    db.session.delete(review)
+    db.session.flush()
+    visible = Review.query.filter_by(product_id=product.id, is_hidden=False).all()
+    if visible:
+        product.rating       = round(sum(r.rating for r in visible) / len(visible), 1)
+        product.review_count = len(visible)
+    else:
+        product.rating       = 0.0
+        product.review_count = 0
+    db.session.commit()
+    flash('Review deleted.', 'success')
+    return redirect(url_for('products.seller_reviews'))
 
 
 @products_bp.route('/seller/add', methods=['GET', 'POST'])
