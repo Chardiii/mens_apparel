@@ -113,23 +113,48 @@
 
 <script>
 const VARIANT_CATEGORIES = {
-    'Suits & Blazers':        { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
-    'Casual Shirts & Pants':  { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
-    'Outerwear & Jackets':    { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
-    'Activewear & Fitness Gear': { type: 'apparel', sizes: ['XS','S','M','L','XL','XXL'] },
-    'Shoes & Accessories':    { type: 'shoes',   sizes: ['38','39','40','41','42','43','44','45'] },
-    'Grooming Products':      { type: 'none' },
+    'Suits & Blazers':           { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Casual Shirts & Pants':     { type: 'dual',     shirtSizes: ['XS','S','M','L','XL','XXL'], pantsSizes: ['28','30','32','34','36','38','40'] },
+    'Outerwear & Jackets':       { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Activewear & Fitness Gear': { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Shoes & Accessories':       { type: 'shoes',    sizes: ['38','39','40','41','42','43','44','45'] },
+    'Grooming Products':         { type: 'none' },
 }
 
-const categorySelect  = document.getElementById('categorySelect')
-const variantSection  = document.getElementById('variantSection')
-const simpleStock     = document.getElementById('simpleStock')
-const simpleStockInput= document.getElementById('simpleStockInput')
-const variantRows     = document.getElementById('variantRows')
-const sizeHeader      = document.getElementById('sizeHeader')
-const addVariantBtn   = document.getElementById('addVariantBtn')
+const categorySelect   = document.getElementById('categorySelect')
+const variantSection   = document.getElementById('variantSection')
+const simpleStock      = document.getElementById('simpleStock')
+const simpleStockInput = document.getElementById('simpleStockInput')
+const variantRows      = document.getElementById('variantRows')
+const sizeHeader       = document.getElementById('sizeHeader')
+const addVariantBtn    = document.getElementById('addVariantBtn')
 
 let currentSizes = []
+
+// ── Product-type toggle for Casual Shirts & Pants ──
+const typeToggleHtml = `
+<div id="productTypeToggle" style="margin-bottom:.75rem;display:flex;gap:.5rem;align-items:center;">
+    <span style="font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Product Type:</span>
+    <button type="button" id="btnShirt" onclick="setProductType('shirt')"
+            style="padding:.3rem .85rem;border-radius:6px;border:1.5px solid #111827;
+                   background:#111827;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;">Shirt</button>
+    <button type="button" id="btnPants" onclick="setProductType('pants')"
+            style="padding:.3rem .85rem;border-radius:6px;border:1.5px solid #e5e7eb;
+                   background:#fff;color:#374151;font-size:.78rem;font-weight:700;cursor:pointer;">Pants (Waist)</button>
+</div>`
+
+let currentProductType = 'shirt'
+
+function setProductType(type) {
+    currentProductType = type
+    const info = VARIANT_CATEGORIES['Casual Shirts & Pants']
+    currentSizes = type === 'pants' ? info.pantsSizes : info.shirtSizes
+    sizeHeader.textContent = type === 'pants' ? 'Waist Size (in)' : 'Size'
+    document.getElementById('btnShirt').style.cssText = `padding:.3rem .85rem;border-radius:6px;border:1.5px solid ${type==='shirt'?'#111827':'#e5e7eb'};background:${type==='shirt'?'#111827':'#fff'};color:${type==='shirt'?'#fff':'#374151'};font-size:.78rem;font-weight:700;cursor:pointer;`
+    document.getElementById('btnPants').style.cssText = `padding:.3rem .85rem;border-radius:6px;border:1.5px solid ${type==='pants'?'#111827':'#e5e7eb'};background:${type==='pants'?'#111827':'#fff'};color:${type==='pants'?'#fff':'#374151'};font-size:.78rem;font-weight:700;cursor:pointer;`
+    variantRows.innerHTML = ''
+    currentSizes.forEach(s => variantRows.appendChild(buildVariantRow(s)))
+}
 
 function buildVariantRow(size = '', color = '', stock = 0, priceAdj = 0) {
     const row = document.createElement('div')
@@ -158,6 +183,10 @@ function onCategoryChange() {
     const cat  = categorySelect.value
     const info = VARIANT_CATEGORIES[cat]
 
+    // Remove type toggle if present
+    const existing = document.getElementById('productTypeToggle')
+    if (existing) existing.remove()
+
     if (!info || info.type === 'none') {
         variantSection.style.display = 'none'
         simpleStock.style.display    = 'block'
@@ -166,19 +195,25 @@ function onCategoryChange() {
         return
     }
 
-    currentSizes = info.sizes
-    sizeHeader.textContent = info.type === 'shoes' ? 'Shoe Size (EU)' : 'Size'
+    if (info.type === 'dual') {
+        // Inject toggle above variant rows
+        variantSection.insertAdjacentHTML('afterbegin', typeToggleHtml)
+        currentProductType = 'shirt'
+        currentSizes = info.shirtSizes
+        sizeHeader.textContent = 'Size'
+    } else {
+        currentSizes = info.sizes
+        sizeHeader.textContent = info.type === 'shoes' ? 'Shoe Size (EU)' : 'Size'
+    }
 
     variantSection.style.display  = 'block'
     simpleStock.style.display     = 'none'
     simpleStockInput.required     = false
     simpleStockInput.value        = ''
 
-    // Pre-populate one row per size if empty
     if (variantRows.children.length === 0) {
         currentSizes.forEach(s => variantRows.appendChild(buildVariantRow(s)))
     } else {
-        // Refresh size options in existing rows
         variantRows.querySelectorAll('select[name="variant_size[]"]').forEach(sel => {
             const cur = sel.value
             sel.innerHTML = `<option value="">— Size —</option>` +
@@ -188,8 +223,6 @@ function onCategoryChange() {
 }
 
 categorySelect.addEventListener('change', onCategoryChange)
-addVariantBtn.addEventListener('click', () => {
-    variantRows.appendChild(buildVariantRow())
-})
+addVariantBtn.addEventListener('click', () => variantRows.appendChild(buildVariantRow()))
 </script>
 {% endblock %}

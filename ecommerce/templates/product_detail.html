@@ -167,6 +167,14 @@
             ]</script>
             {% endif %}
 
+            {# ── Size Guide link ── #}
+            {% if product.category and product.category != 'Grooming Products' %}
+            <button type="button" onclick="document.getElementById('sizeGuideModal').style.display='flex'"
+                    style="background:none;border:none;padding:0;color:#6b7280;font-size:.78rem;
+                           font-weight:600;cursor:pointer;text-decoration:underline;margin-bottom:.75rem;
+                           display:flex;align-items:center;gap:.3rem;">📏 Size Guide / Measurement Chart</button>
+            {% endif %}
+
             {# ── Add to Cart / Buy Now ── #}
             {% set total_stock = product.total_stock %}
             {% if total_stock > 0 and current_user.is_authenticated and current_user.is_buyer() %}
@@ -799,6 +807,38 @@
 .pd-review-comment { font-size: .85rem; color: #555; line-height: 1.6; margin: 0; }
 .pd-no-reviews { font-size: .85rem; color: #aaa; text-align: center; padding: 1rem 0; margin: 0; }
 
+/* ── Size Guide Modal ── */
+#sizeGuideModal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 9000;
+    align-items: center; justify-content: center; padding: 1rem;
+}
+.sg-box {
+    background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
+    max-height: 88vh; overflow-y: auto; padding: 1.75rem;
+    box-shadow: 0 8px 40px rgba(0,0,0,.18);
+}
+.sg-title { font-size: 1.1rem; font-weight: 800; color: var(--brand-dark); margin-bottom: 1.25rem; }
+.sg-section { margin-bottom: 1.25rem; }
+.sg-section-title {
+    font-size: .78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: #6b7280; margin-bottom: .5rem;
+}
+.sg-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.sg-table th {
+    background: #f3f4f6; color: #374151; font-weight: 700;
+    padding: .45rem .75rem; text-align: left; border-bottom: 1px solid #e5e7eb;
+}
+.sg-table td { padding: .4rem .75rem; border-bottom: 1px solid #f0ede6; color: #555; }
+.sg-table tr:last-child td { border-bottom: none; }
+.sg-note { font-size: .75rem; color: #9ca3af; margin-top: .5rem; line-height: 1.5; }
+.sg-close-btn {
+    display: block; width: 100%; margin-top: 1.25rem;
+    background: var(--brand-dark); color: #fff; border: none;
+    padding: .65rem; border-radius: 8px; font-weight: 700;
+    font-size: .85rem; cursor: pointer; letter-spacing: .5px;
+}
+
 /* ── Zoom ── */
 .pd-zoomable { cursor: zoom-in; transition: opacity .15s; }
 .pd-zoomable:hover { opacity: .9; }
@@ -833,8 +873,81 @@
 }
 </style>
 
+{# ── Size Guide Modal ── #}
+<div id="sizeGuideModal">
+    <div class="sg-box">
+        <p class="sg-title">📏 Size Guide &amp; Measurements</p>
+
+        {% set cat = product.category or '' %}
+
+        {% if cat in ['Suits & Blazers', 'Casual Shirts & Pants', 'Outerwear & Jackets', 'Activewear & Fitness Gear'] %}
+        <div class="sg-section">
+            <p class="sg-section-title">Apparel Sizes (chest / waist in inches)</p>
+            <table class="sg-table">
+                <thead><tr><th>Size</th><th>Chest</th><th>Waist</th><th>Hip</th></tr></thead>
+                <tbody>
+                    <tr><td>XS</td><td>32–34"</td><td>26–28"</td><td>34–36"</td></tr>
+                    <tr><td>S</td><td>35–37"</td><td>29–31"</td><td>37–39"</td></tr>
+                    <tr><td>M</td><td>38–40"</td><td>32–34"</td><td>40–42"</td></tr>
+                    <tr><td>L</td><td>41–43"</td><td>35–37"</td><td>43–45"</td></tr>
+                    <tr><td>XL</td><td>44–46"</td><td>38–40"</td><td>46–48"</td></tr>
+                    <tr><td>XXL</td><td>47–49"</td><td>41–43"</td><td>49–51"</td></tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if cat == 'Casual Shirts & Pants' %}
+        <div class="sg-section">
+            <p class="sg-section-title">Pants — Waist Sizes</p>
+            <table class="sg-table">
+                <thead><tr><th>Waist (in)</th><th>Waist (cm)</th><th>Inseam (typical)</th></tr></thead>
+                <tbody>
+                    <tr><td>28"</td><td>71 cm</td><td>30"</td></tr>
+                    <tr><td>30"</td><td>76 cm</td><td>30"</td></tr>
+                    <tr><td>32"</td><td>81 cm</td><td>32"</td></tr>
+                    <tr><td>34"</td><td>86 cm</td><td>32"</td></tr>
+                    <tr><td>36"</td><td>91 cm</td><td>32"</td></tr>
+                    <tr><td>38"</td><td>97 cm</td><td>34"</td></tr>
+                    <tr><td>40"</td><td>102 cm</td><td>34"</td></tr>
+                </tbody>
+            </table>
+            <p class="sg-note">Measure your natural waist (around the narrowest part of your torso) for the best fit.</p>
+        </div>
+        {% endif %}
+
+        {% if cat == 'Shoes & Accessories' %}
+        <div class="sg-section">
+            <p class="sg-section-title">Shoe Sizes (EU / US / CM)</p>
+            <table class="sg-table">
+                <thead><tr><th>EU</th><th>US</th><th>Foot Length (cm)</th></tr></thead>
+                <tbody>
+                    <tr><td>38</td><td>6</td><td>24.0</td></tr>
+                    <tr><td>39</td><td>6.5</td><td>24.7</td></tr>
+                    <tr><td>40</td><td>7</td><td>25.3</td></tr>
+                    <tr><td>41</td><td>8</td><td>26.0</td></tr>
+                    <tr><td>42</td><td>9</td><td>26.7</td></tr>
+                    <tr><td>43</td><td>10</td><td>27.3</td></tr>
+                    <tr><td>44</td><td>11</td><td>28.0</td></tr>
+                    <tr><td>45</td><td>12</td><td>28.7</td></tr>
+                </tbody>
+            </table>
+            <p class="sg-note">Measure your foot from heel to longest toe on a flat surface for the most accurate size.</p>
+        </div>
+        {% endif %}
+
+        <p class="sg-note" style="margin-top:0;">All measurements are approximate. If you are between sizes, we recommend sizing up.</p>
+        <button class="sg-close-btn" onclick="document.getElementById('sizeGuideModal').style.display='none'">Close</button>
+    </div>
+</div>
+
 <script>
 const VARIANTS = JSON.parse(document.getElementById('variantJson')?.textContent || '[]')
+
+// Close size guide modal on backdrop click
+document.getElementById('sizeGuideModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none'
+})
 const hasVariants = VARIANTS.length > 0
 const BASE_PRICE = {{ product.price }}
 

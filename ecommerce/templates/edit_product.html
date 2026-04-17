@@ -210,23 +210,61 @@
 
 <script>
 const VARIANT_CATS = {
-    'Suits & Blazers':           ['XS','S','M','L','XL','XXL'],
-    'Casual Shirts & Pants':     ['XS','S','M','L','XL','XXL'],
-    'Outerwear & Jackets':       ['XS','S','M','L','XL','XXL'],
-    'Activewear & Fitness Gear': ['XS','S','M','L','XL','XXL'],
-    'Shoes & Accessories':       ['38','39','40','41','42','43','44','45'],
-    'Grooming Products':         null,
+    'Suits & Blazers':           { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Casual Shirts & Pants':     { type: 'dual',     shirtSizes: ['XS','S','M','L','XL','XXL'], pantsSizes: ['28','30','32','34','36','38','40'] },
+    'Outerwear & Jackets':       { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Activewear & Fitness Gear': { type: 'apparel',  sizes: ['XS','S','M','L','XL','XXL'] },
+    'Shoes & Accessories':       { type: 'shoes',    sizes: ['38','39','40','41','42','43','44','45'] },
+    'Grooming Products':         { type: 'none' },
 }
 
-const catSel    = document.getElementById('categorySelect')
-const vSection  = document.getElementById('variantSection')
-const sSection  = document.getElementById('simpleStock')
-const sInput    = document.getElementById('simpleStockInput')
-const vRows     = document.getElementById('variantRows')
-const sizeHdr   = document.getElementById('sizeHeader')
-const addBtn    = document.getElementById('addVariantBtn')
+const catSel  = document.getElementById('categorySelect')
+const vSection= document.getElementById('variantSection')
+const sSection= document.getElementById('simpleStock')
+const sInput  = document.getElementById('simpleStockInput')
+const vRows   = document.getElementById('variantRows')
+const sizeHdr = document.getElementById('sizeHeader')
+const addBtn  = document.getElementById('addVariantBtn')
 
-let sizes = VARIANT_CATS[catSel.value] || []
+let sizes = []
+let currentProductType = 'shirt'
+
+// Detect if existing variants look like waist sizes
+const existingVariantSizes = [...document.querySelectorAll('select[name="variant_size[]"]')].map(s => s.value)
+const looksLikePants = existingVariantSizes.some(s => /^\d{2}$/.test(s) && parseInt(s) >= 28 && parseInt(s) <= 42)
+if (looksLikePants) currentProductType = 'pants'
+
+const typeToggleHtml = `
+<div id="productTypeToggle" style="margin-bottom:.75rem;display:flex;gap:.5rem;align-items:center;">
+    <span style="font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Product Type:</span>
+    <button type="button" id="btnShirt" onclick="setProductType('shirt')"
+            style="padding:.3rem .85rem;border-radius:6px;border:1.5px solid #e5e7eb;
+                   background:#fff;color:#374151;font-size:.78rem;font-weight:700;cursor:pointer;">Shirt</button>
+    <button type="button" id="btnPants" onclick="setProductType('pants')"
+            style="padding:.3rem .85rem;border-radius:6px;border:1.5px solid #e5e7eb;
+                   background:#fff;color:#374151;font-size:.78rem;font-weight:700;cursor:pointer;">Pants (Waist)</button>
+</div>`
+
+function highlightTypeBtn(type) {
+    const btnS = document.getElementById('btnShirt')
+    const btnP = document.getElementById('btnPants')
+    if (!btnS || !btnP) return
+    btnS.style.cssText = `padding:.3rem .85rem;border-radius:6px;border:1.5px solid ${type==='shirt'?'#111827':'#e5e7eb'};background:${type==='shirt'?'#111827':'#fff'};color:${type==='shirt'?'#fff':'#374151'};font-size:.78rem;font-weight:700;cursor:pointer;`
+    btnP.style.cssText = `padding:.3rem .85rem;border-radius:6px;border:1.5px solid ${type==='pants'?'#111827':'#e5e7eb'};background:${type==='pants'?'#111827':'#fff'};color:${type==='pants'?'#fff':'#374151'};font-size:.78rem;font-weight:700;cursor:pointer;`
+}
+
+function setProductType(type) {
+    currentProductType = type
+    const info = VARIANT_CATS['Casual Shirts & Pants']
+    sizes = type === 'pants' ? info.pantsSizes : info.shirtSizes
+    sizeHdr.textContent = type === 'pants' ? 'Waist Size (in)' : 'Size'
+    highlightTypeBtn(type)
+    // Refresh existing dropdowns
+    vRows.querySelectorAll('select[name="variant_size[]"]').forEach(el => {
+        const cur = el.value
+        el.innerHTML = sizeOpts(cur)
+    })
+}
 
 function sizeOpts(sel) {
     return '<option value="">— Size —</option>' +
@@ -248,30 +286,39 @@ function newRow() {
 }
 
 function applyCategory() {
-    const s = VARIANT_CATS[catSel.value]
-    if (s) {
-        sizes = s
-        sizeHdr.textContent = catSel.value.includes('Shoes') ? 'Shoe Size (EU)' : 'Size'
-        vSection.style.display = 'block'
-        sSection.style.display = 'none'
-        sInput.disabled = true
-        // refresh existing dropdowns
-        vRows.querySelectorAll('select[name="variant_size[]"]').forEach(el => {
-            const cur = el.value
-            el.innerHTML = sizeOpts(cur)
-        })
-    } else {
+    const info = VARIANT_CATS[catSel.value]
+    const existing = document.getElementById('productTypeToggle')
+    if (existing) existing.remove()
+
+    if (!info || info.type === 'none') {
         sizes = []
         vSection.style.display = 'none'
         sSection.style.display = 'block'
         sInput.disabled = false
+        return
     }
+
+    if (info.type === 'dual') {
+        vSection.insertAdjacentHTML('afterbegin', typeToggleHtml)
+        sizes = currentProductType === 'pants' ? info.pantsSizes : info.shirtSizes
+        sizeHdr.textContent = currentProductType === 'pants' ? 'Waist Size (in)' : 'Size'
+        highlightTypeBtn(currentProductType)
+    } else {
+        sizes = info.sizes
+        sizeHdr.textContent = info.type === 'shoes' ? 'Shoe Size (EU)' : 'Size'
+    }
+
+    vSection.style.display = 'block'
+    sSection.style.display = 'none'
+    sInput.disabled = true
+    vRows.querySelectorAll('select[name="variant_size[]"]').forEach(el => {
+        const cur = el.value
+        el.innerHTML = sizeOpts(cur)
+    })
 }
 
 catSel.addEventListener('change', applyCategory)
 addBtn.addEventListener('click', () => vRows.appendChild(newRow()))
-
-// Run on load
 applyCategory()
 </script>
 {% endblock %}

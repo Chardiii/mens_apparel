@@ -542,7 +542,7 @@ def edit_product(product_id):
     # Build size options for the template based on current category
     size_map = {
         'Suits & Blazers':           ['XS','S','M','L','XL','XXL'],
-        'Casual Shirts & Pants':     ['XS','S','M','L','XL','XXL'],
+        'Casual Shirts & Pants':     ['XS','S','M','L','XL','XXL','28','30','32','34','36','38','40'],
         'Outerwear & Jackets':       ['XS','S','M','L','XL','XXL'],
         'Activewear & Fitness Gear': ['XS','S','M','L','XL','XXL'],
         'Shoes & Accessories':       ['38','39','40','41','42','43','44','45'],
