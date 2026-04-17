@@ -1,0 +1,105 @@
+{% extends "seller_base.html" %}
+{% set active_page = 'reviews' %}
+
+{% block title %}Reviews — Mode S7vn{% endblock %}
+{% block page_title %}Reviews{% endblock %}
+
+{% block content %}
+
+<div class="sel-page-header">
+    <div>
+        <h1 class="sel-page-title">Customer Reviews</h1>
+        <p class="sel-page-sub">
+            {{ reviews|length }} total ·
+            {{ reviews|selectattr('is_hidden','equalto',False)|list|length }} visible ·
+            {{ reviews|selectattr('is_hidden')|list|length }} hidden
+        </p>
+    </div>
+</div>
+
+{% if reviews %}
+<div class="sel-card">
+    <table class="sel-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Buyer</th>
+                <th>Rating</th>
+                <th>Comment</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for review in reviews %}
+            <tr style="{{ 'opacity:.45;' if review.is_hidden }}">
+                <td>
+                    <a href="{{ url_for('products.view_product', product_id=review.product.id) }}"
+                       style="font-weight:600;color:#111827;text-decoration:none;font-size:.83rem;">
+                        {{ review.product.name }}
+                    </a>
+                </td>
+                <td style="font-size:.83rem;color:#374151;">
+                    {{ review.reviewer.username }}
+                </td>
+                <td>
+                    <span style="color:#f59e0b;font-size:.9rem;letter-spacing:1px;">
+                        {% for i in range(1, 6) %}{{ '★' if i <= review.rating else '☆' }}{% endfor %}
+                    </span>
+                    <span style="font-size:.72rem;color:#9ca3af;margin-left:.2rem;">{{ review.rating }}/5</span>
+                </td>
+                <td style="font-size:.83rem;color:#374151;max-width:220px;">
+                    {% if review.comment %}
+                    <span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+                                 overflow:hidden;">{{ review.comment }}</span>
+                    {% else %}
+                    <span style="color:#9ca3af;font-style:italic;">No comment</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:.75rem;color:#9ca3af;white-space:nowrap;">
+                    {{ review.created_at.strftime('%b %d, %Y') }}
+                </td>
+                <td>
+                    {% if review.is_hidden %}
+                    <span class="sel-badge" style="background:#f3f4f6;color:#6b7280;">Hidden</span>
+                    {% else %}
+                    <span class="sel-badge sel-badge-active">Visible</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;gap:.35rem;">
+                        {# Hide / Unhide #}
+                        <form method="POST"
+                              action="{{ url_for('products.seller_toggle_review', review_id=review.id) }}">
+                            <button type="submit" class="sel-btn sel-btn-ghost"
+                                    title="{{ 'Show review' if review.is_hidden else 'Hide review' }}">
+                                {{ '👁️ Show' if review.is_hidden else '🙈 Hide' }}
+                            </button>
+                        </form>
+                        {# Delete #}
+                        <form method="POST"
+                              action="{{ url_for('products.seller_delete_review', review_id=review.id) }}">
+                            <button type="submit" class="sel-btn sel-btn-danger"
+                                    onclick="return confirm('Permanently delete this review?')"
+                                    title="Delete review">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div style="text-align:center;padding:4rem 2rem;background:#fff;border-radius:12px;
+            border:1px solid #e5e7eb;">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">⭐</div>
+    <p style="color:#6b7280;margin:0;">No reviews yet on your products.</p>
+</div>
+{% endif %}
+
+{% endblock %}

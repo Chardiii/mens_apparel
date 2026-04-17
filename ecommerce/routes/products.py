@@ -95,7 +95,7 @@ def search_suggestions():
 @products_bp.route('/<int:product_id>')
 def view_product(product_id):
     product = Product.query.get_or_404(product_id)
-    reviews = product.reviews.order_by(Review.created_at.desc()).all()
+    reviews = product.reviews.filter_by(is_hidden=False).order_by(Review.created_at.desc()).all()
 
     user_has_reviewed = False
     user_has_purchased = False

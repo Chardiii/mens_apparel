@@ -345,6 +345,10 @@
                class="sel-nav-link {% if active_page == 'add_product' %}active{% endif %}">
                 <span class="sel-nav-icon">➕</span> Add Product
             </a>
+            <a href="{{ url_for('products.seller_reviews') }}"
+               class="sel-nav-link {% if active_page == 'reviews' %}active{% endif %}">
+                <span class="sel-nav-icon">⭐</span> Reviews
+            </a>
 
             <div class="sel-nav-section">Account</div>
             <a href="{{ url_for('messages.inbox') }}"
